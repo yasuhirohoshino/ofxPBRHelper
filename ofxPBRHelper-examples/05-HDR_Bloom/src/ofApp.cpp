@@ -24,7 +24,7 @@ void ofApp::setup(){
     
     cam.setupPerspective(false, 60, 1, 12000);
     
-    scene = bind(mem_fn(&ofApp::renderScene), this);
+    scene = bind(&ofApp::renderScene, this);
     
     ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
     pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);

@@ -13,16 +13,14 @@ void ofApp::setup(){
     
     cam.setupPerspective(false, 60, 1, 12000);
     
-    scene = bind(mem_fn(&ofApp::renderScene), this);
+    scene = bind(&ofApp::renderScene, this);
     
     ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
     pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);
     pbrHelper.addLight(&pbrLight1, "light1");
-    pbrHelper.addLight(&pbrLight2, "light2");
     pbrHelper.addMaterial(&floorMaterial, "floorMaterial");
     pbrHelper.addMaterial(&sphereMaterial, "sphereMaterial");
     pbrHelper.addCubeMap(&cubeMap1, "cubeMap1");
-    pbrHelper.addCubeMap(&cubeMap2, "cubeMap2");
     
     ofSetSphereResolution(32);
     ofSetConeResolution(32, 1);

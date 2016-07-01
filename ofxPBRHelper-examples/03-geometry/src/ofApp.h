@@ -26,16 +26,16 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 		
-    ofxPBRCubeMap cubeMap1, cubeMap2;
-    ofxPBRMaterial floorMaterial, cubeMaterial, sphereMaterial, coneMaterial;
-    ofxPBRLight pbrLight1, pbrLight2;
+    function<void()> scene;
+    
+    ofxPBRCubeMap cubeMap1;
+    ofxPBRMaterial floorMaterial, sphereMaterial;
+    ofxPBRLight pbrLight1;
     ofxPBR pbr;
     ofxPBRHelper pbrHelper;
     
     ofShader geomShader, defaultRenderer;
     ofEasyCam cam;
-    
-    function<void()> scene;
     
     bool mouseInput = true;
     bool showGui = true;

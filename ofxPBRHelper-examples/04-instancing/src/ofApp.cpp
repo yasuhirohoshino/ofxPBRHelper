@@ -32,7 +32,6 @@ void ofApp::setup(){
     ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
     pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);
     pbrHelper.addLight(&pbrLight1, "light1");
-    pbrHelper.addMaterial(&floorMaterial, "floorMaterial");
     pbrHelper.addMaterial(&cubeMaterial, "cubeMaterial");
     pbrHelper.addCubeMap(&cubeMap1, "cubeMap1");
     

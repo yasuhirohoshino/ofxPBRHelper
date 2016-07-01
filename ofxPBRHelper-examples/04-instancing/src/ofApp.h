@@ -28,9 +28,9 @@ class ofApp : public ofBaseApp{
 		
     function<void()> scene;
     
-    ofxPBRCubeMap cubeMap1, cubeMap2;
-    ofxPBRMaterial floorMaterial, cubeMaterial, sphereMaterial, coneMaterial;
-    ofxPBRLight pbrLight1, pbrLight2;
+    ofxPBRCubeMap cubeMap1;
+    ofxPBRMaterial cubeMaterial;
+    ofxPBRLight pbrLight1;
     ofxPBR pbr;
     ofxPBRHelper pbrHelper;
     

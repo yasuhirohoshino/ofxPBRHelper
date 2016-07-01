@@ -7,8 +7,6 @@
 #include "ofxPBR.h"
 #include "ofxPBRHelper.h"
 
-const int MAX_LIGHTS = 8;
-
 class ofApp : public ofBaseApp{
 
 	public:
