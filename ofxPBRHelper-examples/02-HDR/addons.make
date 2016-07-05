@@ -1,3 +1,4 @@
+ofxAssimpModelLoader
 ofxImGui
 ofxJSON
 ofxPBR
