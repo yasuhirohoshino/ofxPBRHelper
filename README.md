@@ -11,6 +11,9 @@ ofxPBRHelper is the helper addon for [ofxPBR](https://github.com/yasuhirohoshino
 + [ofxJSON](https://github.com/jefftimesten/ofxJSON)
 + [ofxImGui](https://github.com/jvcleave/ofxImGui)
 
+#others
+HDR image is downloaded from http://www.hdrlabs.com/sibl/archive.html
+
 -
 
 By Yasuhiro Hoshino
