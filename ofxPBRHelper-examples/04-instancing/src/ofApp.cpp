@@ -80,7 +80,7 @@ void ofApp::renderScene(){
     ofEnableDepthTest();
     pbr.begin(&cam, &renderShader);
     
-    cubeMaterial.begin(pbr.getShader());
+    cubeMaterial.begin(&pbr);
     mesh.drawInstanced(OF_MESH_FILL, pos.size());
     cubeMaterial.end();
     

@@ -4,7 +4,6 @@
 void ofApp::setup(){
     ofDisableArbTex();
     
-    renderShader.load("ofxPBRShaders/default");
     pbr.setup(1024);
     
     cam.setupPerspective(false, 60, 1, 12000);
@@ -76,17 +75,17 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::renderScene(){
     ofEnableDepthTest();
-    pbr.begin(&cam, &renderShader);
+    pbr.begin(&cam);
     
-    planeMaterial.begin(pbr.getShader());
+    planeMaterial.begin(&pbr);
     ofDrawPlane(-350 * 2, 150, 0, 300, 300);
     planeMaterial.end();
     
-    sphereMaterial.begin(pbr.getShader());
+    sphereMaterial.begin(&pbr);
     ofDrawSphere(-350, 150, 0, 150);
     sphereMaterial.end();
     
-    coneMaterial.begin(pbr.getShader());
+    coneMaterial.begin(&pbr);
     ofPushMatrix();
     ofTranslate(0, 150, 0);
     ofRotateX(180);
@@ -94,15 +93,15 @@ void ofApp::renderScene(){
     ofPopMatrix();
     coneMaterial.end();
     
-    cubeMaterial.begin(pbr.getShader());
+    cubeMaterial.begin(&pbr);
     ofDrawBox(350, 150, 0, 300, 300, 300);
     cubeMaterial.end();
     
-    cylinderMaterial.begin(pbr.getShader());
+    cylinderMaterial.begin(&pbr);
     ofDrawCylinder(350 * 2, 150, 0, 150, 300);
     cylinderMaterial.end();
     
-    floorMaterial.begin(pbr.getShader());
+    floorMaterial.begin(&pbr);
     ofDrawBox(0, -5, 0, 5000, 10, 5000);
     floorMaterial.end();
     

@@ -34,7 +34,7 @@ class ofApp : public ofBaseApp{
     ofxPBR pbr;
     ofxPBRHelper pbrHelper;
     
-    ofShader geomShader, defaultRenderer;
+    ofShader geomShader;
     ofEasyCam cam;
     
     bool mouseInput = true;

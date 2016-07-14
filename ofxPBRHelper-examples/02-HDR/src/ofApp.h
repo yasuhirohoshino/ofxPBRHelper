@@ -39,7 +39,6 @@ class ofApp : public ofBaseApp{
     ofFbo firstPass, secondPass;
     ofFbo::Settings defaultFboSettings;
     
-    ofShader renderShader;
     ofEasyCam cam;
     
     ofxAssimpModelLoader model;

@@ -8,7 +8,6 @@ void ofApp::setup(){
     geomShader.setGeometryOutputCount(9);
     geomShader.setGeometryOutputType(GL_TRIANGLES);
     geomShader.load("shaders/geometryPBR.vert", "shaders/geometryPBR.frag", "shaders/geometryPBR.geom");
-    defaultRenderer.load("shaders/ofxPBRShaders/default");
     pbr.setup(1024);
     
     cam.setupPerspective(false, 60, 1, 12000);
@@ -75,7 +74,7 @@ void ofApp::renderScene(){
     ofEnableDepthTest();
     
     pbr.begin(&cam, &geomShader);
-    sphereMaterial.begin(pbr.getShader());
+    sphereMaterial.begin(&pbr);
     
     ofSetIcoSphereResolution(0);
     ofDrawIcoSphere(-750 * 2, 0, 0, 300);
@@ -95,8 +94,8 @@ void ofApp::renderScene(){
     sphereMaterial.end();
     pbr.end();
     
-    pbr.begin(&cam, &defaultRenderer);
-    floorMaterial.begin(pbr.getShader());
+    pbr.begin(&cam);
+    floorMaterial.begin(&pbr);
     ofDrawBox(0, -450, 0, 5000, 10, 5000);
     floorMaterial.end();
     pbr.end();

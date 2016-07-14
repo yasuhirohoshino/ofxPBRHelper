@@ -9,7 +9,6 @@ void ofApp::setup(){
     }
     modelScale = model.getModelMatrix().getScale();
     
-    renderShader.load("shaders/ofxPBRShaders/default");
     pbr.setup(1024);
     
     defaultFboSettings.textureTarget = GL_TEXTURE_2D;
@@ -135,16 +134,16 @@ void ofApp::resizeFbos(){
 void ofApp::renderScene(){
     ofEnableDepthTest();
     
-    pbr.begin(&cam, &renderShader);
+    pbr.begin(&cam);
     
-    material1.begin(&renderShader);
+    material1.begin(&pbr);
     ofPushMatrix();
     ofScale(modelScale.x, modelScale.y, modelScale.z);
     modelMesh.draw();
     ofPopMatrix();
     material1.end();
     
-    material2.begin(&renderShader);
+    material2.begin(&pbr);
     ofDrawBox(0, -5, 0, 5000, 10, 5000);
     material2.end();
     

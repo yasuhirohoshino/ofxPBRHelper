@@ -35,7 +35,6 @@ class ofApp : public ofBaseApp{
     ofxPBRHelper pbrHelper;
     ofxImGui gui;
     
-    ofShader renderShader;
     ofEasyCam cam;
     
     bool mouseInput = true;
