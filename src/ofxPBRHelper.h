@@ -13,7 +13,9 @@ public:
 	void drawGui();
 	void addLight(ofxPBRLight* light, string name);
 	void addMaterial(ofxPBRMaterial* material, string name);
-	void addCubeMap(ofxPBRCubeMap * cubeMap, string name);
+	void addCubeMap(ofxPBRCubeMap* cubeMap, string name);
+    void addSharedMaterial(map<string, pair<ofxPBRMaterial*, MaterialParams*>> sharedMaterials);
+    void addSharedCubeMap(map<string, pair<ofxPBRCubeMap*, CubeMapParams*>> sharedCubeMaps);
 
 private:
 	void loadJsonFiles();
@@ -38,7 +40,7 @@ private:
 	vector<string> jsonFiles;
     
     // CubeMaps
-	map<string, pair<ofxPBRCubeMap*, CubeMapParams>> cubeMaps;
+	map<string, pair<ofxPBRCubeMap*, CubeMapParams*>> cubeMaps;
 	vector<string> cubeMapKeys;
 	string currentCubeMapKey;
 	string selectedCubeMapKey;
@@ -57,7 +59,7 @@ private:
 	int selectedLight = 0;
 
     // Materials
-	map<string, pair<ofxPBRMaterial*, MaterialParams>> materials;
+	map<string, pair<ofxPBRMaterial*, MaterialParams*>> materials;
 	string currentMaterialKey;
 	bool textureLoaded = false;
 	ofFile currentFile;

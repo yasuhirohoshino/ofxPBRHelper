@@ -120,7 +120,12 @@ void ofxPBRHelper::drawGui()
         }
         
         if(ImGui::CollapsingHeader("Cube Map")){
+            
+//            int button = 0;
+//            ImGui::RadioButton("unique", &button, 0); ImGui::SameLine();
+//            ImGui::RadioButton("common", &button, 1);
             ImGui::BeginChild("cubeMap list", ImVec2(150, 200), true);
+            
             int cubeMapIndex = 0;
             for (auto elm : cubeMaps) {
                 char label[128];
@@ -177,7 +182,7 @@ void ofxPBRHelper::drawGui()
                     ImGui::SameLine();
                     const char* res[] = { "128", "256", "512", "1024", "2048" };
                     if (ImGui::Combo("resolution", &selectedCubeMapRes, res, 5)) {
-                        CubeMapParams* p = &cubeMaps[selectedCubeMapKey].second;
+                        CubeMapParams* p = cubeMaps[selectedCubeMapKey].second;
                         switch (selectedCubeMapRes)
                         {
                         case 0:
@@ -216,8 +221,8 @@ void ofxPBRHelper::drawGui()
                         ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
                         ImTextureID textureID = (ImTextureID)(uintptr_t)p.second->getTextureData().textureID;
                         if (ImGui::ImageButton(textureID, ImVec2(200, 100), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-                            cubeMaps[selectedCubeMapKey].second.url = files->getPath() + "/panoramas/" + p.first;
-                            cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second.resolution, true, files->getPath() + "/cubemapCache/");
+                            cubeMaps[selectedCubeMapKey].second->url = files->getPath() + "/panoramas/" + p.first;
+                            cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second->resolution, true, files->getPath() + "/cubemapCache/");
                             showPanoramaWindow = false;
                         }
                         ImGui::PushID(index);
@@ -250,7 +255,7 @@ void ofxPBRHelper::drawGui()
                 }
 
                 ofxPBRCubeMap* cubeMap = cubeMaps[selectedCubeMapKey].first;
-                CubeMapParams* params = &cubeMaps[selectedCubeMapKey].second;
+                CubeMapParams* params = cubeMaps[selectedCubeMapKey].second;
 
                 if (ImGui::DragFloat("exposure", &params->exposure, 0.1)) {
                     params->exposure = fmaxf(params->exposure, 0.0);
@@ -470,7 +475,7 @@ void ofxPBRHelper::drawGui()
 			ImGui::BeginChild("material params", ImVec2(0, 400));
 			if (materials.find(currentMaterialKey) != materials.end()) {
 				ofxPBRMaterial* material = materials[currentMaterialKey].first;
-				MaterialParams* params = &materials[currentMaterialKey].second;
+				MaterialParams* params = materials[currentMaterialKey].second;
 
 				// base color
 				ImGui::Text("base color");
@@ -762,7 +767,7 @@ void ofxPBRHelper::drawGui()
 		if (showTextureWindow) {
 			if (materials.find(currentMaterialKey) != materials.end()) {
 				ofxPBRMaterial* material = materials[currentMaterialKey].first;
-				MaterialParams* params = &materials[currentMaterialKey].second;
+				MaterialParams* params = materials[currentMaterialKey].second;
 
                 ImGui::SetNextWindowSize(ImVec2(300, 150), ImGuiSetCond_FirstUseEver);
 				ImGui::Begin("Textures", &showTextureWindow);
@@ -898,15 +903,34 @@ void ofxPBRHelper::addLight(ofxPBRLight * light, string name)
 
 void ofxPBRHelper::addMaterial(ofxPBRMaterial * material, string name)
 {
-	materials.insert(map<string, pair<ofxPBRMaterial*, MaterialParams>>::value_type(name, pair<ofxPBRMaterial*, MaterialParams>(material, MaterialParams())));
+    MaterialParams* params = new MaterialParams;
+    materials.insert(map<string, pair<ofxPBRMaterial*, MaterialParams*>>::value_type(name, pair<ofxPBRMaterial*, MaterialParams*>(material, params)));
 	setMaterialsFromJson(name);
 }
 
 void ofxPBRHelper::addCubeMap(ofxPBRCubeMap * cubeMap, string name)
 {
-	cubeMaps.insert(map<string, pair<ofxPBRCubeMap*, CubeMapParams>>::value_type(name, pair<ofxPBRCubeMap*, CubeMapParams>(cubeMap, CubeMapParams())));
+    CubeMapParams* params = new CubeMapParams;
+	cubeMaps.insert(map<string, pair<ofxPBRCubeMap*, CubeMapParams*>>::value_type(name, pair<ofxPBRCubeMap*, CubeMapParams*>(cubeMap, params)));
 	cubeMapKeys.push_back(name);
 	setCubeMapsFromJson(name);
+}
+
+void ofxPBRHelper::addSharedMaterial(map<string, pair<ofxPBRMaterial*, MaterialParams*>> sharedMaterials)
+{
+    for(auto material : sharedMaterials){
+        materials.insert(map<string, pair<ofxPBRMaterial*, MaterialParams*>>::value_type(material.first, pair<ofxPBRMaterial*, MaterialParams*>(material.second.first, material.second.second)));
+        setMaterialsFromJson(material.first);
+    }
+}
+
+void ofxPBRHelper::addSharedCubeMap(map<string, pair<ofxPBRCubeMap*, CubeMapParams*>> sharedCubeMaps)
+{
+    for(auto cubeMap : sharedCubeMaps){
+        cubeMaps.insert(map<string, pair<ofxPBRCubeMap*, CubeMapParams*>>::value_type(cubeMap.first, pair<ofxPBRCubeMap*, CubeMapParams*>(cubeMap.second.first, cubeMap.second.second)));
+        cubeMapKeys.push_back(cubeMap.first);
+        setCubeMapsFromJson(cubeMap.first);
+    }
 }
 
 void ofxPBRHelper::loadJsonFiles()
@@ -931,7 +955,7 @@ void ofxPBRHelper::saveJson(string fileName)
 	Json::Value cubeMapJson;
 	for (auto cubeMap : cubeMaps) {
 		ofxPBRCubeMap* c = cubeMap.second.first;
-		CubeMapParams* p = &cubeMap.second.second;
+		CubeMapParams* p = cubeMap.second.second;
 		cubeMapJson[cubeMap.first]["resolution"] = p->resolution;
 		cubeMapJson[cubeMap.first]["exposure"] = p->exposure;
 		cubeMapJson[cubeMap.first]["rotation"] = p->rotation;
@@ -944,7 +968,7 @@ void ofxPBRHelper::saveJson(string fileName)
 	Json::Value materialJson;
 	for (auto material : materials) {
 		ofxPBRMaterial* m = material.second.first;
-		MaterialParams* p = &material.second.second;
+		MaterialParams* p = material.second.second;
 		materialJson[material.first]["baseColor"]["r"] = m->baseColor.r;
 		materialJson[material.first]["baseColor"]["g"] = m->baseColor.g;
 		materialJson[material.first]["baseColor"]["b"] = m->baseColor.b;
@@ -1030,7 +1054,7 @@ void ofxPBRHelper::saveJson(string fileName)
 void ofxPBRHelper::setMaterialsFromJson(string materialName)
 {
 	ofxPBRMaterial* material = materials[materialName].first;
-	MaterialParams* params = &materials[materialName].second;
+	MaterialParams* params = materials[materialName].second;
 	if (settings.isNull() == false && settings["material"][materialName].isNull() == false) {
 		Json::Value m = settings["material"][materialName];
 		material->baseColor = ofFloatColor(
@@ -1203,7 +1227,7 @@ void ofxPBRHelper::setLightsFromJson(string lightName)
 void ofxPBRHelper::setCubeMapsFromJson(string cubeMapName)
 {
 	ofxPBRCubeMap* cubeMap = cubeMaps[cubeMapName].first;
-	CubeMapParams* params = &cubeMaps[cubeMapName].second;
+	CubeMapParams* params = cubeMaps[cubeMapName].second;
 	if (settings.isNull() == false && settings["cubeMap"][cubeMapName].isNull() == false) {
 		Json::Value c = settings["cubeMap"][cubeMapName];
 		params->resolution = c["resolution"].asInt();
