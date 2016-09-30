@@ -34,10 +34,10 @@ void ofxPBRHelper::drawGui()
 		if (lights.find(currentLightKey) != lights.end()) {
 			int lightId = lights[currentLightKey].first->getId();
 			int depthMapRes = pbr->getDepthMapResolution();
-			shadowMap.begin();
-			ofClear(0);
-			pbr->getDepthMap()->drawSubsection(0, 0, 256, 256, (lightId % 4) * depthMapRes, depthMapRes + floor(float(lightId) / 4) * depthMapRes, depthMapRes, -depthMapRes);
-			shadowMap.end();
+			//shadowMap.begin();
+			//ofClear(0);
+			//pbr->getDepthMap()->drawSubsection(0, 0, 256, 256, (lightId % 4) * depthMapRes, depthMapRes + floor(float(lightId) / 4) * depthMapRes, depthMapRes, -depthMapRes);
+			//shadowMap.end();
 		}
         
         if(ImGui::CollapsingHeader("General")){
@@ -73,9 +73,9 @@ void ofxPBRHelper::drawGui()
                 for (auto l : lights) {
                     setLightsFromJson(l.first);
                 }
-                for (auto c : cubeMaps) {
-                    setCubeMapsFromJson(c.first);
-                }
+                //for (auto c : cubeMaps) {
+                //    setCubeMapsFromJson(c.first);
+                //}
                 setPBRFromJson();
             }
             
@@ -395,10 +395,10 @@ void ofxPBRHelper::drawGui()
                         light->setRadius(lightParam->radius);
                     }
                     if (ImGui::DragFloat("cutoff", &lightParam->cutoff, 0.1, 0.0, 90.0)) {
-                        light->setCutoff(lightParam->cutoff);
+                        light->setSpotLightCutoff(lightParam->cutoff);
                     }
                     if (ImGui::DragFloat("spotFactor", &lightParam->spotFactor, 0.1, 0.0, 10.0)) {
-                        light->setSpotFactor(lightParam->spotFactor);
+                        light->setSpotLightFactor(lightParam->spotFactor);
                     }
                 }
                 ImGui::Spacing();
@@ -442,9 +442,9 @@ void ofxPBRHelper::drawGui()
                 }
 
                 if (light->getShadowType() == ShadowType_Soft) {
-                    if (ImGui::DragFloat("softShadowExponent", &lightParam->softShadowExponent, 0.1, 0.0, 200.0, "%.2f")) {
-                        light->setSoftShadowExponent(lightParam->softShadowExponent);
-                    }
+                    //if (ImGui::DragFloat("softShadowExponent", &lightParam->softShadowExponent, 0.1, 0.0, 200.0, "%.2f")) {
+                    //    light->setSoftShadowExponent(lightParam->softShadowExponent);
+                    //}
                 }
 
                 ImGui::Image(depthMapId, ImVec2(256, 256));
@@ -1199,8 +1199,8 @@ void ofxPBRHelper::setLightsFromJson(string lightName)
 		light->setColor(params->color);
 		light->setIntensity(params->intensity);
 		light->setRadius(params->radius);
-		light->setCutoff(params->cutoff);
-		light->setSpotFactor(params->spotFactor);
+		light->setSpotLightCutoff(params->cutoff);
+		light->setSpotLightFactor(params->spotFactor);
 
 		switch (params->shadowType) {
 		case 0:
@@ -1220,7 +1220,7 @@ void ofxPBRHelper::setLightsFromJson(string lightName)
 		light->setFarClip(params->farClip);
 		light->setScale(params->scale);
 		light->setShadowBias(params->shadowBias);
-		light->setSoftShadowExponent(params->softShadowExponent);
+		//light->setSoftShadowExponent(params->softShadowExponent);
 	}
 }
 

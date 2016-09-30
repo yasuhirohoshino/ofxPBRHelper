@@ -3,12 +3,9 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
     ofDisableArbTex();
-    
-    pbr.setup(1024);
-    
-    cam.setupPerspective(false, 60, 1, 12000);
-    
-    scene = bind(&ofApp::renderScene, this);
+	cam.setupPerspective(false, 60, 1, 12000);
+	scene = bind(&ofApp::renderScene, this);
+	pbr.setup(&cam, scene, 1024);
     
     gui.setup();
     
@@ -35,12 +32,11 @@ void ofApp::update(){
 }
 
 //--------------------------------------------------------------
-void ofApp::draw(){
-    pbr.makeDepthMap(scene);
-    
+void ofApp::draw(){  
     ofDisableAlphaBlending();
     ofEnableDepthTest();
     
+	pbr.updateDepthMaps();
     cam.begin();
     pbr.drawEnvironment(&cam);
     scene();
@@ -75,7 +71,7 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::renderScene(){
     ofEnableDepthTest();
-    pbr.begin(&cam);
+    pbr.begin();
     
     planeMaterial.begin(&pbr);
     ofDrawPlane(-350 * 2, 150, 0, 300, 300);
