@@ -8,8 +8,7 @@ void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool enableOtherGui)
 	this->folderPath = folderPath;
 
 	ofDisableArbTex();
-	shadowMap.allocate(256, 256, GL_R32F);
-	depthMapId = (ImTextureID)(uintptr_t)shadowMap.getTexture().getTextureData().textureID;
+	depthMapId = 0;
 
 	files = ofxPBRFiles::getInstance();
 
@@ -30,161 +29,166 @@ void ofxPBRHelper::drawGui()
         gui.begin();
         ImGui::Begin("ofxPBRHelper");
     }
-	{
-		if (lights.find(currentLightKey) != lights.end()) {
-			int lightId = lights[currentLightKey].first->getId();
-			int depthMapRes = pbr->getDepthMapResolution();
-			//shadowMap.begin();
-			//ofClear(0);
-			//pbr->getDepthMap()->drawSubsection(0, 0, 256, 256, (lightId % 4) * depthMapRes, depthMapRes + floor(float(lightId) / 4) * depthMapRes, depthMapRes, -depthMapRes);
-			//shadowMap.end();
-		}
-        
-        if(ImGui::CollapsingHeader("General")){
-            if (ImGui::Button("save")) {
-                if (settings.isNull() == true && currentJsonIndex == -1) {
-                    ImGui::OpenPopup("Save As ...");
-                }else{
-                    saveJson(jsonFiles[currentJsonIndex]);
-                }
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("save as...")) {
+    
+    drawGeneralGui();
+    drawCubeMapsGui();
+    drawLightsGui();
+    drawMaterialsGui();
+    
+    if(!enableOtherGui){
+        ImGui::End();
+        gui.end();
+    }
+}
+
+void ofxPBRHelper::drawGeneralGui(){
+    if(ImGui::CollapsingHeader("General")){
+        if (ImGui::Button("save")) {
+            if (settings.isNull() == true && currentJsonIndex == -1) {
                 ImGui::OpenPopup("Save As ...");
-            }
-            if (ImGui::BeginPopupModal("Save As ...", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-            {
-                static char newJsonName[64] = ""; ImGui::InputText("file name", newJsonName, 64);
-                if (ImGui::Button("save", ImVec2(120, 0))) {
-                    saveJson(newJsonName);
-                    ImGui::CloseCurrentPopup();
-                    loadJsonFiles();
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-                ImGui::EndPopup();
-            }
-            
-            if (Combo("load", &currentJsonIndex, jsonFiles)) {
-                settings.openLocal(folderPath + "/" + jsonFiles[currentJsonIndex] + ".json");
-                for (auto m : materials) {
-                    setMaterialsFromJson(m.first);
-                }
-                for (auto l : lights) {
-                    setLightsFromJson(l.first);
-                }
-                //for (auto c : cubeMaps) {
-                //    setCubeMapsFromJson(c.first);
-                //}
-                setPBRFromJson();
-            }
-            
-            if (ImGui::Checkbox("enable cubeMap", &pbrParams.enableCubeMap)) {
-                pbr->enableCubeMap(pbrParams.enableCubeMap);
-            }
-            
-            if (Combo("cubemap", &currentCubeMapIndex, cubeMapKeys)) {
-                currentCubeMapKey = cubeMapKeys[currentCubeMapIndex];
-                pbrParams.cubeMapName = cubeMapKeys[currentCubeMapIndex];
-                pbr->setCubeMap(cubeMaps[currentCubeMapKey].first);
-            }
-            
-            const char* shadowRes[] = { "128", "256", "512", "1024", "2048", "4096" };
-            if (ImGui::Combo("shadowMap Res", &shadowResIndex, shadowRes, 6)) {
-                switch (shadowResIndex)
-                {
-                    case 0:
-                        pbrParams.shadowMapRes = 128;
-                        break;
-                    case 1:
-                        pbrParams.shadowMapRes = 256;
-                        break;
-                    case 2:
-                        pbrParams.shadowMapRes = 512;
-                        break;
-                    case 3:
-                        pbrParams.shadowMapRes = 1024;
-                        break;
-                    case 4:
-                        pbrParams.shadowMapRes = 2048;
-                        break;
-                    case 5:
-                        pbrParams.shadowMapRes = 4096;
-                        break;
-                        
-                    default:
-                        break;
-                }
-                pbr->resizeDepthMap(pbrParams.shadowMapRes);
+            }else{
+                saveJson(jsonFiles[currentJsonIndex]);
             }
         }
-        
-        if(ImGui::CollapsingHeader("Cube Map")){
-            
-//            int button = 0;
-//            ImGui::RadioButton("unique", &button, 0); ImGui::SameLine();
-//            ImGui::RadioButton("common", &button, 1);
-            ImGui::BeginChild("cubeMap list", ImVec2(150, 200), true);
-            
-            int cubeMapIndex = 0;
-            for (auto elm : cubeMaps) {
-                char label[128];
-                string name = elm.first;
-                sprintf(label, name.c_str());
-                if (ImGui::Selectable(label, selectedCubeMap == cubeMapIndex)) {
-                    selectedCubeMap = cubeMapIndex;
-                    selectedCubeMapKey = elm.first;
-                }
-                cubeMapIndex++;
+        ImGui::SameLine();
+        if (ImGui::Button("save as...")) {
+            ImGui::OpenPopup("Save As ...");
+        }
+        if (ImGui::BeginPopupModal("Save As ...", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            static char newJsonName[64] = ""; ImGui::InputText("file name", newJsonName, 64);
+            if (ImGui::Button("save", ImVec2(120, 0))) {
+                saveJson(newJsonName);
+                ImGui::CloseCurrentPopup();
+                loadJsonFiles();
             }
-            ImGui::EndChild();
             ImGui::SameLine();
+            if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+            ImGui::EndPopup();
+        }
+        
+        if (Combo("load", &currentJsonIndex, jsonFiles)) {
+            settings.openLocal(folderPath + "/" + jsonFiles[currentJsonIndex] + ".json");
+            for (auto m : materials) {
+                setMaterialsFromJson(m.first);
+            }
+            for (auto l : lights) {
+                setLightsFromJson(l.first);
+            }
+            for (auto c : cubeMaps) {
+                setCubeMapsFromJson(c.first);
+            }
+            setPBRFromJson();
+        }
+        
+        if (ImGui::Checkbox("enable cubeMap", &pbrParams.enableCubeMap)) {
+            pbr->enableCubeMap(pbrParams.enableCubeMap);
+        }
+        
+        if (Combo("cubemap", &currentCubeMapIndex, cubeMapKeys)) {
+            currentCubeMapKey = cubeMapKeys[currentCubeMapIndex];
+            pbrParams.cubeMapName = cubeMapKeys[currentCubeMapIndex];
+            pbr->setCubeMap(cubeMaps[currentCubeMapKey].first);
+        }
+        
+        const char* shadowRes[] = { "128", "256", "512", "1024", "2048", "4096" };
+        if (ImGui::Combo("shadowMap Res", &shadowResIndex, shadowRes, 6)) {
+            switch (shadowResIndex)
+            {
+                case 0:
+                    pbrParams.shadowMapRes = 128;
+                    break;
+                case 1:
+                    pbrParams.shadowMapRes = 256;
+                    break;
+                case 2:
+                    pbrParams.shadowMapRes = 512;
+                    break;
+                case 3:
+                    pbrParams.shadowMapRes = 1024;
+                    break;
+                case 4:
+                    pbrParams.shadowMapRes = 2048;
+                    break;
+                case 5:
+                    pbrParams.shadowMapRes = 4096;
+                    break;
+                    
+                default:
+                    break;
+            }
+            pbr->resizeDepthMap(pbrParams.shadowMapRes);
+        }
+    }
+}
 
-            ImGui::BeginGroup();
-            ImGui::BeginChild("cubeMap params", ImVec2(0, 200));
-            if (cubeMaps.find(selectedCubeMapKey) != cubeMaps.end()) {
-                if (ImGui::Button("set panorama")) {
-                    showPanoramaWindow = !showPanoramaWindow;
-                }
+void ofxPBRHelper::drawCubeMapsGui(){
+    if(ImGui::CollapsingHeader("Cube Map")){
+        
+        //            int button = 0;
+        //            ImGui::RadioButton("unique", &button, 0); ImGui::SameLine();
+        //            ImGui::RadioButton("common", &button, 1);
+        ImGui::BeginChild("cubeMap list", ImVec2(150, 200), true);
+        
+        int cubeMapIndex = 0;
+        for (auto elm : cubeMaps) {
+            char label[128];
+            string name = elm.first;
+            sprintf(label, name.c_str());
+            if (ImGui::Selectable(label, selectedCubeMap == cubeMapIndex)) {
+                selectedCubeMap = cubeMapIndex;
+                selectedCubeMapKey = elm.first;
+            }
+            cubeMapIndex++;
+        }
+        ImGui::EndChild();
+        ImGui::SameLine();
+        
+        ImGui::BeginGroup();
+        ImGui::BeginChild("cubeMap params", ImVec2(0, 200));
+        if (cubeMaps.find(selectedCubeMapKey) != cubeMaps.end()) {
+            if (ImGui::Button("set panorama")) {
+                showPanoramaWindow = !showPanoramaWindow;
+            }
+            
+            if (panoramaLoaded) {
+                ofDisableArbTex();
+                ofxPBRImage img;
+                img.load(currentPanoramaFile.getAbsolutePath());
+                img.resize(512, 256);
+                img.saveImage(files->getPath() + "/panoramas_small/" + currentPanoramaFile.getFileName());
+                ofTexture* texture = new ofTexture();
+                *texture = img.getTexture();
+                files->panoramas.insert(map<string, ofTexture*>::value_type(currentPanoramaFile.getFileName(), texture));
                 
-                if (panoramaLoaded) {
-                    ofDisableArbTex();
-                    ofxPBRImage img;
-                    img.load(currentPanoramaFile.getAbsolutePath());
-                    img.resize(512, 256);
-                    img.saveImage(files->getPath() + "/panoramas_small/" + currentPanoramaFile.getFileName());
-                    ofTexture* texture = new ofTexture();
-                    *texture = img.getTexture();
-                    files->panoramas.insert(map<string, ofTexture*>::value_type(currentPanoramaFile.getFileName(), texture));
-
-                    ofEnableArbTex();
-                    ofFile::copyFromTo(currentPanoramaFile.getAbsolutePath(), files->getPath() + "/panoramas/" + currentPanoramaFile.getFileName());
-                    panoramaLoaded = false;
-                }
-
-                if (panoramaErase) {
-                    files->panoramas[erasePanoramaName]->clear();
-                    files->panoramas[erasePanoramaName] = nullptr;
-                    files->panoramas.erase(erasePanoramaName);
-                    panoramaErase = false;
-                }
-
-                if (showPanoramaWindow) {
-                    ImGui::SetNextWindowSize(ofVec2f(600, 300), ImGuiSetCond_FirstUseEver);
-                    ImGui::Begin("Panorama", &showPanoramaWindow);
-                    if (ImGui::Button("load image")) {
-                        ofFileDialogResult openFileResult = ofSystemLoadDialog("Select a image");
-                        if (openFileResult.bSuccess) {
-                            currentPanoramaFile.open(openFileResult.getPath());
-                            panoramaLoaded = true;
-                        }
+                ofEnableArbTex();
+                ofFile::copyFromTo(currentPanoramaFile.getAbsolutePath(), files->getPath() + "/panoramas/" + currentPanoramaFile.getFileName());
+                panoramaLoaded = false;
+            }
+            
+            if (panoramaErase) {
+                files->panoramas[erasePanoramaName]->clear();
+                files->panoramas[erasePanoramaName] = nullptr;
+                files->panoramas.erase(erasePanoramaName);
+                panoramaErase = false;
+            }
+            
+            if (showPanoramaWindow) {
+                ImGui::SetNextWindowSize(ofVec2f(600, 300), ImGuiSetCond_FirstUseEver);
+                ImGui::Begin("Panorama", &showPanoramaWindow);
+                if (ImGui::Button("load image")) {
+                    ofFileDialogResult openFileResult = ofSystemLoadDialog("Select a image");
+                    if (openFileResult.bSuccess) {
+                        currentPanoramaFile.open(openFileResult.getPath());
+                        panoramaLoaded = true;
                     }
-                    ImGui::SameLine();
-                    const char* res[] = { "128", "256", "512", "1024", "2048" };
-                    if (ImGui::Combo("resolution", &selectedCubeMapRes, res, 5)) {
-                        CubeMapParams* p = cubeMaps[selectedCubeMapKey].second;
-                        switch (selectedCubeMapRes)
-                        {
+                }
+                ImGui::SameLine();
+                const char* res[] = { "128", "256", "512", "1024", "2048" };
+                if (ImGui::Combo("resolution", &selectedCubeMapRes, res, 5)) {
+                    CubeMapParams* p = cubeMaps[selectedCubeMapKey].second;
+                    switch (selectedCubeMapRes)
+                    {
                         case 0:
                             p->resolution = 128;
                             break;
@@ -202,110 +206,113 @@ void ofxPBRHelper::drawGui()
                             break;
                         default:
                             break;
-                        }
                     }
-                    int index = 0;
-                    int totalWidth = 0;
-                    for (auto p : files->panoramas) {
-                        ofVec2f btnRes = ofVec2f(200, 100);
-                        totalWidth += btnRes.x;
-                        totalWidth += ImGui::GetStyle().ItemSpacing.x;
-                        if (index != 0 && ImGui::GetWindowWidth() > totalWidth) {
-                            ImGui::SameLine();
-                        }
-                        else if (index != 0) {
-                            totalWidth = btnRes.x + ImGui::GetStyle().ItemSpacing.x;
-                        }
-
-                        ImGui::BeginChild(index, ImVec2(200, 125), false);
-                        ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
-                        ImTextureID textureID = (ImTextureID)(uintptr_t)p.second->getTextureData().textureID;
-                        if (ImGui::ImageButton(textureID, ImVec2(200, 100), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-                            cubeMaps[selectedCubeMapKey].second->url = files->getPath() + "/panoramas/" + p.first;
-                            cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second->resolution, true, files->getPath() + "/cubemapCache/");
-                            showPanoramaWindow = false;
-                        }
-                        ImGui::PushID(index);
-                        if (ImGui::BeginPopupContextItem("detail"))
-                        {
-                            string s = p.first;
-                            ImGui::Text(s.c_str());
-
-                            if (ImGui::Button("Delete")) {
-                                ImGui::CloseCurrentPopup();
-                                erasePanoramaName = p.first;
-                                panoramaErase = true;
-                                ofFile::removeFile(files->getPath() + "/panoramas/" + erasePanoramaName);
-                                ofFile::removeFile(files->getPath() + "/panoramas_small/" + erasePanoramaName);
-                            }
-                            ImGui::EndPopup();
-                        }
-                        ImGui::PopID();
+                }
+                int index = 0;
+                int totalWidth = 0;
+                for (auto p : files->panoramas) {
+                    ofVec2f btnRes = ofVec2f(200, 100);
+                    totalWidth += btnRes.x;
+                    totalWidth += ImGui::GetStyle().ItemSpacing.x;
+                    if (index != 0 && ImGui::GetWindowWidth() > totalWidth) {
+                        ImGui::SameLine();
+                    }
+                    else if (index != 0) {
+                        totalWidth = btnRes.x + ImGui::GetStyle().ItemSpacing.x;
+                    }
+                    
+                    ImGui::BeginChild(index, ImVec2(200, 125), false);
+                    ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
+                    ImTextureID textureID = (ImTextureID)(uintptr_t)p.second->getTextureData().textureID;
+                    if (ImGui::ImageButton(textureID, ImVec2(200, 100), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                        cubeMaps[selectedCubeMapKey].second->url = files->getPath() + "/panoramas/" + p.first;
+                        cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second->resolution, true, files->getPath() + "/cubemapCache/");
+                        showPanoramaWindow = false;
+                    }
+                    ImGui::PushID(index);
+                    if (ImGui::BeginPopupContextItem("detail"))
+                    {
                         string s = p.first;
                         ImGui::Text(s.c_str());
-                        ImGui::EndChild();
-                        index++;
+                        
+                        if (ImGui::Button("Delete")) {
+                            ImGui::CloseCurrentPopup();
+                            erasePanoramaName = p.first;
+                            panoramaErase = true;
+                            ofFile::removeFile(files->getPath() + "/panoramas/" + erasePanoramaName);
+                            ofFile::removeFile(files->getPath() + "/panoramas_small/" + erasePanoramaName);
+                        }
+                        ImGui::EndPopup();
                     }
-                    ImGui::End();
+                    ImGui::PopID();
+                    string s = p.first;
+                    ImGui::Text(s.c_str());
+                    ImGui::EndChild();
+                    index++;
                 }
-
-                if (cubeMaps[selectedCubeMapKey].first->isAllocated()) {
-                    ImTextureID env = (ImTextureID)(uintptr_t)cubeMaps[selectedCubeMapKey].first->getPanoramaTexture()->getTextureData().textureID;
-                    ImGui::Image(env, ImVec2(200, 100));
-                }
-
-                ofxPBRCubeMap* cubeMap = cubeMaps[selectedCubeMapKey].first;
-                CubeMapParams* params = cubeMaps[selectedCubeMapKey].second;
-
-                if (ImGui::DragFloat("exposure", &params->exposure, 0.1)) {
-                    params->exposure = fmaxf(params->exposure, 0.0);
-                    cubeMap->setExposure(params->exposure);
-                }
-
-                if (ImGui::DragFloat("rotation", &params->rotation, 0.005, 0.0, 2 * PI)) {
-                    cubeMap->setRotation(params->rotation);
-                }
-
-                if (ImGui::SliderFloat("env level", &params->envronmentLevel, 0.0, 1.0)) {
-                    cubeMap->setEnvLevel(params->envronmentLevel);
-                }
+                ImGui::End();
             }
-            ImGui::EndChild();
-            ImGui::EndGroup();
+            
+            if (cubeMaps[selectedCubeMapKey].first->isAllocated()) {
+                ImTextureID env = (ImTextureID)(uintptr_t)cubeMaps[selectedCubeMapKey].first->getPanoramaTexture()->getTextureData().textureID;
+                ImGui::Image(env, ImVec2(200, 100));
+            }
+            
+            ofxPBRCubeMap* cubeMap = cubeMaps[selectedCubeMapKey].first;
+            CubeMapParams* params = cubeMaps[selectedCubeMapKey].second;
+            
+            if (ImGui::DragFloat("exposure", &params->exposure, 0.1)) {
+                params->exposure = fmaxf(params->exposure, 0.0);
+                cubeMap->setExposure(params->exposure);
+            }
+            
+            if (ImGui::DragFloat("rotation", &params->rotation, 0.005, 0.0, 2 * PI)) {
+                cubeMap->setRotation(params->rotation);
+            }
+            
+            if (ImGui::SliderFloat("env level", &params->envronmentLevel, 0.0, 1.0)) {
+                cubeMap->setEnvLevel(params->envronmentLevel);
+            }
         }
+        ImGui::EndChild();
+        ImGui::EndGroup();
+    }
+}
+
+void ofxPBRHelper::drawLightsGui(){
+    if(ImGui::CollapsingHeader("Lights")){
+        ImGui::BeginChild("light list", ImVec2(150, 400), true);
         
-        if(ImGui::CollapsingHeader("Lights")){
-            ImGui::BeginChild("light list", ImVec2(150, 400), true);
-
-            int lightIndex = 0;
-
-            for (auto elm : lights) {
-                char label[128];
-                string name = elm.first;
-                sprintf(label, name.c_str());
-                if (ImGui::Selectable(label, selectedLight == lightIndex)) {
-                    selectedLight = lightIndex;
-                    currentLightKey = elm.first;
-                }
-                lightIndex++;
+        int lightIndex = 0;
+        
+        for (auto elm : lights) {
+            char label[128];
+            string name = elm.first;
+            sprintf(label, name.c_str());
+            if (ImGui::Selectable(label, selectedLight == lightIndex)) {
+                selectedLight = lightIndex;
+                currentLightKey = elm.first;
+                depthMapId = (ImTextureID)(uintptr_t)pbr->getDepthMap(lightIndex)->getTextureData().textureID;
             }
-
-            ImGui::EndChild();
-            ImGui::SameLine();
-
-            ImGui::BeginGroup();
-            ImGui::BeginChild("light params", ImVec2(0, 400));
-            if (lights.find(currentLightKey) != lights.end()) {
-                ofxPBRLight* light = lights[currentLightKey].first;
-                LightParams* lightParam = &lights[currentLightKey].second;
-
-                ImGui::Text(currentLightKey.c_str());
-                if (ImGui::Checkbox("enable", &lightParam->enable)) {
-                    light->enable(lightParam->enable);
-                }
-                const char* lightType[] = { "directional", "spot", "point", "sky" };
-                if (ImGui::Combo("light type", &lightParam->lightType, lightType, 4)) {
-                    switch (lightParam->lightType) {
+            lightIndex++;
+        }
+        depthMapId = (ImTextureID)(uintptr_t)pbr->getDepthMap(selectedLight)->getTextureData().textureID;
+        ImGui::EndChild();
+        ImGui::SameLine();
+        
+        ImGui::BeginGroup();
+        ImGui::BeginChild("light params", ImVec2(0, 400));
+        if (lights.find(currentLightKey) != lights.end()) {
+            ofxPBRLight* light = lights[currentLightKey].first;
+            LightParams* lightParam = &lights[currentLightKey].second;
+            
+            ImGui::Text(currentLightKey.c_str());
+            if (ImGui::Checkbox("enable", &lightParam->enable)) {
+                light->enable(lightParam->enable);
+            }
+            const char* lightType[] = { "directional", "spot", "point", "sky" };
+            if (ImGui::Combo("light type", &lightParam->lightType, lightType, 4)) {
+                switch (lightParam->lightType) {
                     case 0:
                         light->setLightType(LightType_Directional);
                         break;
@@ -320,93 +327,93 @@ void ofxPBRHelper::drawGui()
                         break;
                     default:
                         break;
-                    }
                 }
-
-                if (light->getLightType() != LightType_Sky) {
-
-                    if (ImGui::DragFloat3("position", &lightParam->pos[0])) {
-                        light->setPosition(lightParam->pos);
-                        light->lookAt(lightParam->target);
+            }
+            
+            if (light->getLightType() != LightType_Sky) {
+                
+                if (ImGui::DragFloat3("position", &lightParam->pos[0])) {
+                    light->setPosition(lightParam->pos);
+                    light->lookAt(lightParam->target);
+                }
+                
+                if (ImGui::DragFloat3("target", &lightParam->target[0])) {
+                    light->lookAt(lightParam->target);
+                }
+                
+                if (ImGui::ColorEdit3("color", &lightParam->color[0])) {
+                    light->setColor(lightParam->color);
+                }
+                
+            }
+            else {
+                if (cubeMaps.find(currentCubeMapKey) != cubeMaps.end() && cubeMaps[currentCubeMapKey].first->isAllocated()) {
+                    ofxPBRCubeMap* cubeMap = cubeMaps[currentCubeMapKey].first;
+                    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                    ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+                    ImVec2 canvas_size = ImVec2(256, 128);
+                    ImTextureID env = (ImTextureID)(uintptr_t)cubeMap->getPanoramaTexture()->getTextureData().textureID;
+                    draw_list->AddImage(env, ImVec2(canvas_pos.x, canvas_pos.y), ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y));
+                    draw_list->AddRect(canvas_pos, ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), ImColor(255, 255, 255));
+                    ImGui::InvisibleButton("canvas", canvas_size);
+                    if (ImGui::IsItemHovered())
+                    {
+                        if (ImGui::IsMouseClicked(0) || ImGui::IsMouseDragging(0))
+                        {
+                            ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - canvas_pos.x, ImGui::GetIO().MousePos.y - canvas_pos.y);
+                            lightParam->skyLightCoord = mouse_pos_in_canvas;
+                            ofFloatColor c = cubeMap->getColor(cubeMap->getPanoramaTexture()->getWidth() * (lightParam->skyLightCoord.x / canvas_size.x), cubeMap->getPanoramaTexture()->getHeight() * (lightParam->skyLightCoord.y / canvas_size.y));
+                            lightParam->color = c;
+                            light->setColor(c);
+                            light->setSkyLightCoordinate(-PI / 2 + (lightParam->skyLightCoord.x / canvas_size.x) * 2 * PI, (lightParam->skyLightCoord.y / canvas_size.y) * PI, lightParam->skyLightRadius);
+                            lightParam->pos = light->getPosition();
+                            light->lookAt(ofVec3f(0, 0, 0));
+                        }
                     }
-
-                    if (ImGui::DragFloat3("target", &lightParam->target[0])) {
-                        light->lookAt(lightParam->target);
+                    
+                    ImVec2 circlePos = ImVec2(lightParam->skyLightCoord.x + canvas_pos.x, lightParam->skyLightCoord.y + canvas_pos.y);
+                    draw_list->AddCircleFilled(circlePos, 5, ImColor(255, 255, 255));
+                    draw_list->AddCircle(circlePos, 5, ImColor(0, 0, 0));
+                    
+                    if (ImGui::DragFloat("skyLightDistance", &lightParam->skyLightRadius, 1)) {
+                        light->setSkyLightCoordinate(-PI / 2 + (lightParam->skyLightCoord.x / canvas_size.x) * 2 * PI, (lightParam->skyLightCoord.y / canvas_size.y) * PI, lightParam->skyLightRadius);
                     }
-
-                    if (ImGui::ColorEdit3("color", &lightParam->color[0])) {
+                    
+                    if (ImGui::DragFloat3("color", &lightParam->color[0])) {
                         light->setColor(lightParam->color);
                     }
-
+                }else{
+                    ImGui::Text("cubeMap texture is not loaded.");
                 }
-                else {
-                    if (cubeMaps.find(currentCubeMapKey) != cubeMaps.end() && cubeMaps[currentCubeMapKey].first->isAllocated()) {
-                        ofxPBRCubeMap* cubeMap = cubeMaps[currentCubeMapKey].first;
-                        ImDrawList* draw_list = ImGui::GetWindowDrawList();
-                        ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
-                        ImVec2 canvas_size = ImVec2(256, 128);
-                        ImTextureID env = (ImTextureID)(uintptr_t)cubeMap->getPanoramaTexture()->getTextureData().textureID;
-                        draw_list->AddImage(env, ImVec2(canvas_pos.x, canvas_pos.y), ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y));
-                        draw_list->AddRect(canvas_pos, ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), ImColor(255, 255, 255));
-                        ImGui::InvisibleButton("canvas", canvas_size);
-                        if (ImGui::IsItemHovered())
-                        {
-                            if (ImGui::IsMouseClicked(0) || ImGui::IsMouseDragging(0))
-                            {
-                                ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - canvas_pos.x, ImGui::GetIO().MousePos.y - canvas_pos.y);
-                                lightParam->skyLightCoord = mouse_pos_in_canvas;
-                                ofFloatColor c = cubeMap->getColor(cubeMap->getPanoramaTexture()->getWidth() * (lightParam->skyLightCoord.x / canvas_size.x), cubeMap->getPanoramaTexture()->getHeight() * (lightParam->skyLightCoord.y / canvas_size.y));
-                                lightParam->color = c;
-                                light->setColor(c);
-                                light->setSkyLightCoordinate(-PI / 2 + (lightParam->skyLightCoord.x / canvas_size.x) * 2 * PI, (lightParam->skyLightCoord.y / canvas_size.y) * PI, lightParam->skyLightRadius);
-                                lightParam->pos = light->getPosition();
-                                light->lookAt(ofVec3f(0, 0, 0));
-                            }
-                        }
-
-                        ImVec2 circlePos = ImVec2(lightParam->skyLightCoord.x + canvas_pos.x, lightParam->skyLightCoord.y + canvas_pos.y);
-                        draw_list->AddCircleFilled(circlePos, 5, ImColor(255, 255, 255));
-                        draw_list->AddCircle(circlePos, 5, ImColor(0, 0, 0));
-
-                        if (ImGui::DragFloat("skyLightDistance", &lightParam->skyLightRadius, 1)) {
-                            light->setSkyLightCoordinate(-PI / 2 + (lightParam->skyLightCoord.x / canvas_size.x) * 2 * PI, (lightParam->skyLightCoord.y / canvas_size.y) * PI, lightParam->skyLightRadius);
-                        }
-
-                        if (ImGui::DragFloat3("color", &lightParam->color[0])) {
-                            light->setColor(lightParam->color);
-                        }
-                    }else{
-                        ImGui::Text("cubeMap texture is not loaded.");
-                    }
+            }
+            
+            if (ImGui::DragFloat("intensity", &lightParam->intensity, 0.1, 0.0, 100.0)) {
+                light->setIntensity(lightParam->intensity);
+            }
+            
+            if (light->getLightType() == LightType_Point) {
+                if (ImGui::DragFloat("radius", &lightParam->radius)) {
+                    light->setPointLightRadius(lightParam->radius);
                 }
-
-                if (ImGui::DragFloat("intensity", &lightParam->intensity, 0.1, 0.0, 100.0)) {
-                    light->setIntensity(lightParam->intensity);
+            }
+            
+            if (light->getLightType() == LightType_Spot) {
+                if (ImGui::DragFloat("distance", &lightParam->radius)) {
+                    light->setSpotLightDistance(lightParam->radius);
                 }
-
-                if (light->getLightType() == LightType_Point) {
-                    if (ImGui::DragFloat("radius", &lightParam->radius)) {
-                        light->setRadius(lightParam->radius);
-                    }
+                if (ImGui::DragFloat("cutoff", &lightParam->cutoff, 0.1, 0.0, 90.0)) {
+                    light->setSpotLightCutoff(lightParam->cutoff);
                 }
-
-                if (light->getLightType() == LightType_Spot) {
-                    if (ImGui::DragFloat("distance", &lightParam->radius)) {
-                        light->setRadius(lightParam->radius);
-                    }
-                    if (ImGui::DragFloat("cutoff", &lightParam->cutoff, 0.1, 0.0, 90.0)) {
-                        light->setSpotLightCutoff(lightParam->cutoff);
-                    }
-                    if (ImGui::DragFloat("spotFactor", &lightParam->spotFactor, 0.1, 0.0, 10.0)) {
-                        light->setSpotLightFactor(lightParam->spotFactor);
-                    }
+                if (ImGui::DragFloat("spotFactor", &lightParam->spotFactor, 0.1, 0.0, 10.0)) {
+                    light->setSpotLightFactor(lightParam->spotFactor);
                 }
-                ImGui::Spacing();
-                ImGui::Text("shadow");
-
-                const char* shadowType[] = { "none", "hard shadow", "soft shadow" };
-                if (ImGui::Combo("shadow type", &lightParam->shadowType, shadowType, 3)) {
-                    switch (lightParam->shadowType) {
+            }
+            ImGui::Spacing();
+            ImGui::Text("shadow");
+            
+            const char* shadowType[] = { "none", "hard shadow", "soft shadow" };
+            if (ImGui::Combo("shadow type", &lightParam->shadowType, shadowType, 3)) {
+                switch (lightParam->shadowType) {
                     case 0:
                         light->setShadowType(ShadowType_None);
                         break;
@@ -418,486 +425,541 @@ void ofxPBRHelper::drawGui()
                         break;
                     default:
                         break;
-                    }
                 }
-
-                if (light->getShadowType() != ShadowType_None) {
-                    if (ImGui::DragFloat("nearClip", &lightParam->nearClip)) {
-                        light->setNearClip(lightParam->nearClip);
-                    }
-
-                    if (ImGui::DragFloat("farClip", &lightParam->farClip)) {
-                        light->setFarClip(lightParam->farClip);
-                    }
-
-                    if (ImGui::DragFloat("scale", &lightParam->scale, 0.1, 0.0, 100.0, "%.2f")) {
-                        light->setScale(lightParam->scale);
-                    }
-                }
-
-                if (light->getShadowType() == ShadowType_Hard) {
-                    if (ImGui::DragFloat("shadowBias", &lightParam->shadowBias, 0.0001, 0.0, 1.0, "%.4f")) {
-                        light->setShadowBias(lightParam->shadowBias);
-                    }
-                }
-
-                if (light->getShadowType() == ShadowType_Soft) {
-                    //if (ImGui::DragFloat("softShadowExponent", &lightParam->softShadowExponent, 0.1, 0.0, 200.0, "%.2f")) {
-                    //    light->setSoftShadowExponent(lightParam->softShadowExponent);
-                    //}
-                }
-
-                ImGui::Image(depthMapId, ImVec2(256, 256));
             }
-
-            ImGui::EndChild();
-            ImGui::EndGroup();
+            
+            if (light->getShadowType() != ShadowType_None) {
+                if (ImGui::DragFloat("nearClip", &lightParam->nearClip)) {
+                    light->setNearClip(lightParam->nearClip);
+                }
+                
+                if (ImGui::DragFloat("farClip", &lightParam->farClip)) {
+                    light->setFarClip(lightParam->farClip);
+                }
+                
+                if (ImGui::DragFloat("scale", &lightParam->scale, 0.1, 0.0, 100.0, "%.2f")) {
+                    light->setScale(lightParam->scale);
+                }
+            }
+            
+            if (light->getShadowType() == ShadowType_Hard) {
+                if (ImGui::DragFloat("shadowBias", &lightParam->shadowBias, 0.0001, 0.0, 1.0, "%.4f")) {
+                    light->setShadowBias(lightParam->shadowBias);
+                }
+            }
+            
+            if (light->getShadowType() == ShadowType_Soft) {
+                //if (ImGui::DragFloat("softShadowExponent", &lightParam->softShadowExponent, 0.1, 0.0, 200.0, "%.2f")) {
+                //    light->setSoftShadowExponent(lightParam->softShadowExponent);
+                //}
+            }
+            
+            ImGui::Image(depthMapId, ImVec2(256, 256));
         }
+        
+        ImGui::EndChild();
+        ImGui::EndGroup();
+    }
+}
 
-        if(ImGui::CollapsingHeader("Materials")){
-			ImGui::BeginChild("material list", ImVec2(150, 400), true);
+void ofxPBRHelper::drawMaterialsGui(){
+    if(ImGui::CollapsingHeader("Materials")){
+        ImGui::BeginChild("material list", ImVec2(150, 400), true);
+        
+        int materialIndex = 0;
+        for (auto elm : materials) {
+            char label[128];
+            string name = elm.first;
+            sprintf(label, name.c_str(), materialIndex);
+            if (ImGui::Selectable(label, selectedMaterial == materialIndex)) {
+                selectedMaterial = materialIndex;
+                currentMaterialKey = elm.first;
+            }
+            materialIndex++;
+        }
+        
+        ImGui::EndChild();
+        ImGui::SameLine();
+        ImGui::BeginGroup();
+        ImGui::BeginChild("material params", ImVec2(0, 400));
+        if (materials.find(currentMaterialKey) != materials.end()) {
+            ofxPBRMaterial* material = materials[currentMaterialKey].first;
+            MaterialParams* params = materials[currentMaterialKey].second;
+            
+            // base color
+            ImGui::Text("base color");
+            ImTextureID baseColorId;
+            if (material->baseColorMap != nullptr && material->baseColorMap->isAllocated()) {
+                baseColorId = (ImTextureID)(uintptr_t)material->baseColorMap->getTextureData().textureID;
+            }else{
+                baseColorId = 0x0;
+                material->enableBaseColorMap = false;
+            }
+            ImGui::PushID(0);
+            if (ImGui::ImageButton(baseColorId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                showTextureWindow = true;
+                currentId = 0;
+            }
+            if (ImGui::BeginPopupContextItem("delete"))
+            {
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    material->enableBaseColorMap = false;
+                    material->baseColorMap = nullptr;
+                    params->baseColorTex = "";
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::ColorEdit4("", &material->baseColor[0]);
+            ImGui::Checkbox("enable texture", &material->enableBaseColorMap);
+            ImGui::EndGroup();
+            ImGui::PopID();
+            ImGui::Spacing();
+            
+            // roughness
+            ImGui::Text("roughness");
+            ImTextureID roughnessId;
+            if (material->roughnessMap != nullptr && material->roughnessMap->isAllocated()) {
+                roughnessId = (ImTextureID)(uintptr_t)material->roughnessMap->getTextureData().textureID;
+            }
+            else {
+                roughnessId = 0x0;
+                material->enableRoughnessMap = false;
+            }
+            ImGui::PushID(1);
+            if (ImGui::ImageButton(roughnessId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                showTextureWindow = true;
+                currentId = 1;
+            }
+            if (ImGui::BeginPopupContextItem("delete"))
+            {
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    material->enableRoughnessMap = false;
+                    material->roughnessMap = nullptr;
+                    params->roughnessTex = "";
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::SliderFloat("", &material->roughness, 0.0, 1.0);
+            ImGui::Checkbox("enable texture", &material->enableRoughnessMap);
+            ImGui::EndGroup();
+            ImGui::PopID();
+            ImGui::Spacing();
+            
+            // metallic
+            ImGui::Text("metallic");
+            ImTextureID metallicId;
+            if (material->metallicMap != nullptr && material->metallicMap->isAllocated()) {
+                metallicId = (ImTextureID)(uintptr_t)material->metallicMap->getTextureData().textureID;
+            }
+            else {
+                metallicId = 0x0;
+                material->enableMetallicMap = false;
+            }
+            ImGui::PushID(2);
+            if (ImGui::ImageButton(metallicId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                showTextureWindow = true;
+                currentId = 2;
+            }
+            if (ImGui::BeginPopupContextItem("delete"))
+            {
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    material->enableMetallicMap = false;
+                    material->metallicMap = nullptr;
+                    params->metallicTex = "";
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::SliderFloat("", &material->metallic, 0.0, 1.0);
+            ImGui::Checkbox("enable texture", &material->enableMetallicMap);
+            ImGui::EndGroup();
+            ImGui::PopID();
+            ImGui::Spacing();
+            
+            // normal
+            ImGui::Text("normal");
+            ImTextureID normalId;
+            if (material->normalMap != nullptr && material->normalMap->isAllocated()) {
+                normalId = (ImTextureID)(uintptr_t)material->normalMap->getTextureData().textureID;
+            }
+            else {
+                normalId = 0x0;
+                material->enableNormalMap = false;
+            }
+            ImGui::PushID(3);
+            if (ImGui::ImageButton(normalId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                showTextureWindow = true;
+                currentId = 3;
+            }
+            if (ImGui::BeginPopupContextItem("delete"))
+            {
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    material->enableNormalMap = false;
+                    material->normalMap = nullptr;
+                    params->normalTex = "";
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::Checkbox("enable texture", &material->enableNormalMap);
+            ImGui::SliderFloat("", &material->normalVal, 0.0, 1.0);
+            ImGui::PopID();
+            ImGui::EndGroup();
+            
+            // occlusion
+            ImGui::Text("occlusion");
+            ImTextureID occlusionId;
+            if (material->occlusionMap != nullptr && material->occlusionMap->isAllocated()) {
+                occlusionId = (ImTextureID)(uintptr_t)material->occlusionMap->getTextureData().textureID;
+            }
+            else {
+                occlusionId = 0x0;
+                material->enableOcclusionMap = false;
+            }
+            ImGui::PushID(4);
+            if (ImGui::ImageButton(occlusionId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                showTextureWindow = true;
+                currentId = 4;
+            }
+            if (ImGui::BeginPopupContextItem("delete"))
+            {
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    material->enableOcclusionMap = false;
+                    material->occlusionMap = nullptr;
+                    params->occlusionTex = "";
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::Checkbox("enable texture", &material->enableOcclusionMap);
+            ImGui::EndGroup();
+            ImGui::PopID();
+            
+            // emission
+            ImGui::Text("emission");
+            ImTextureID emissionId;
+            if (material->emissionMap != nullptr && material->emissionMap->isAllocated()) {
+                emissionId = (ImTextureID)(uintptr_t)material->emissionMap->getTextureData().textureID;
+            }
+            else {
+                emissionId = 0x0;
+                material->enableEmissionMap = false;
+            }
+            ImGui::PushID(5);
+            if (ImGui::ImageButton(emissionId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                showTextureWindow = true;
+                currentId = 5;
+            }
+            if (ImGui::BeginPopupContextItem("delete"))
+            {
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    material->enableEmissionMap = false;
+                    material->emissionMap = nullptr;
+                    params->emissionTex = "";
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::Checkbox("enable texture", &material->enableEmissionMap);
+            ImGui::EndGroup();
+            ImGui::PopID();
+            
+            // detail base color
+            ImGui::Text("detail base color");
+            ImTextureID detailBaseColorId;
+            if (material->detailBaseColorMap != nullptr && material->detailBaseColorMap->isAllocated()) {
+                detailBaseColorId = (ImTextureID)(uintptr_t)material->detailBaseColorMap->getTextureData().textureID;
+            }
+            else {
+                detailBaseColorId = 0x0;
+                material->enableDetailBaseColorMap = false;
+            }
+            ImGui::PushID(6);
+            if (ImGui::ImageButton(detailBaseColorId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                showTextureWindow = true;
+                currentId = 6;
+            }
+            if (ImGui::BeginPopupContextItem("delete"))
+            {
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    material->enableDetailBaseColorMap = false;
+                    material->detailBaseColorMap = nullptr;
+                    params->detailBaseColorTex = "";
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::Checkbox("enable texture", &material->enableDetailBaseColorMap);
+            ImGui::EndGroup();
+            ImGui::PopID();
+            
+            // detail normal
+            ImGui::Text("detail normal");
+            ImTextureID detailNormalId;
+            if (material->detailNormalMap != nullptr && material->detailNormalMap->isAllocated()) {
+                detailNormalId = (ImTextureID)(uintptr_t)material->detailNormalMap->getTextureData().textureID;
+            }
+            else {
+                detailNormalId = 0x0;
+                material->enableDetailNormalMap = false;
+            }
+            ImGui::PushID(7);
+            if (ImGui::ImageButton(detailNormalId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                showTextureWindow = true;
+                currentId = 7;
+            }
+            if (ImGui::BeginPopupContextItem("delete"))
+            {
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    material->enableDetailNormalMap = false;
+                    material->detailNormalMap = nullptr;
+                    params->detailNormalTex = "";
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::Checkbox("enable texture", &material->enableDetailNormalMap);
+            ImGui::EndGroup();
+            ImGui::PopID();
+            
+            ImGui::Text("texture repeat");
+            ImGui::PushID(8);
+            ImGui::DragFloat2("", &material->textureRepeat[0]);
+            ImGui::PopID();
+            
+            ImGui::Text("detail texture repeat");
+            ImGui::PushID(9);
+            ImGui::DragFloat2("", &material->detailTextureRepeat[0]);
+            ImGui::PopID();
+        }
+        ImGui::EndChild();
+        ImGui::EndGroup();
+    }
+    
+    if (textureLoaded) {
+        ofDisableArbTex();
+        ofTexture* texture = new ofTexture();
+        files->textures.insert(map<string, ofTexture*>::value_type(currentFile.getFileName(), texture));
+        ofxPBRImage img;
+        img.load(currentFile.getAbsolutePath());
+        *files->textures[currentFile.getFileName()] = img.getTexture();
+        ofEnableArbTex();
+        
+        textureLoaded = false;
+    }
+    
+    if (texErase) {
+        files->textures[eraseTexName]->clear();
+        files->textures[eraseTexName] = nullptr;
+        files->textures.erase(eraseTexName);
+        texErase = false;
+    }
+    
+    if (showTextureWindow) {
+        if (materials.find(currentMaterialKey) != materials.end()) {
+            ofxPBRMaterial* material = materials[currentMaterialKey].first;
+            MaterialParams* params = materials[currentMaterialKey].second;
+            
+            ImGui::SetNextWindowSize(ImVec2(300, 150), ImGuiSetCond_FirstUseEver);
+            ImGui::Begin("Textures", &showTextureWindow);
+            if (ImGui::Button("load texture")) {
+                ofFileDialogResult openFileResult = ofSystemLoadDialog("Select a image");
+                if (openFileResult.bSuccess) {
+                    if (files->textures.find(openFileResult.getName()) == files->textures.end()) {
+                        currentFile.open(openFileResult.getPath());
+                        ofFile::copyFromTo(currentFile.getAbsolutePath(), files->getPath() + "/textures/" + currentFile.getFileName());
+                        textureLoaded = true;
+                    }
+                }
+            }
+            
+            int totalWidth = -ImGui::GetStyle().ItemSpacing.x;
+            int index = 0;
+            
+            ImGui::BeginChild("textures");
+            for (auto t : files->textures)
+            {
+                ofVec2f btnRes = ofVec2f(100, 100);
+                totalWidth += btnRes.x;
+                totalWidth += ImGui::GetStyle().ItemSpacing.x;
+                if (index != 0 && ImGui::GetWindowWidth() > totalWidth) {
+                    ImGui::SameLine();
+                }
+                else if (index != 0) {
+                    totalWidth = btnRes.x;
+                }
+                
+                ImTextureID textureID = (ImTextureID)(uintptr_t)t.second->getTextureData().textureID;
+                ImGui::BeginChild(index, ImVec2(100, 125), false);
+                ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
+                if (ImGui::ImageButton(textureID, ImVec2(btnRes.x, btnRes.y), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                    
+                    switch (currentId) {
+                        case 0:
+                            material->baseColorMap = t.second;
+                            params->baseColorTex = t.first;
+                            material->enableBaseColorMap = true;
+                            break;
+                            
+                        case 1:
+                            material->roughnessMap = t.second;
+                            params->roughnessTex = t.first;
+                            material->enableRoughnessMap = true;
+                            break;
+                            
+                        case 2:
+                            material->metallicMap = t.second;
+                            params->metallicTex = t.first;
+                            material->enableMetallicMap = true;
+                            break;
+                            
+                        case 3:
+                            material->normalMap = t.second;
+                            params->normalTex = t.first;
+                            material->enableNormalMap = true;
+                            break;
+                            
+                        case 4:
+                            material->occlusionMap = t.second;
+                            params->occlusionTex = t.first;
+                            material->enableOcclusionMap = true;
+                            break;
+                            
+                        case 5:
+                            material->emissionMap = t.second;
+                            params->emissionTex = t.first;
+                            material->enableEmissionMap = true;
+                            break;
+                            
+                        case 6:
+                            material->detailBaseColorMap = t.second;
+                            params->detailBaseColorTex = t.first;
+                            material->enableDetailBaseColorMap = true;
+                            break;
+                            
+                        case 7:
+                            material->detailNormalMap = t.second;
+                            params->detailNormalTex = t.first;
+                            material->enableDetailNormalMap = true;
+                            break;
+                            
+                        default:
+                            break;
+                    }
+                    showTextureWindow = false;
+                }
+                ImGui::PushID(index);
+                if (ImGui::BeginPopupContextItem("detail"))
+                {
+                    string s = t.first;
+                    ImGui::Text(s.c_str());
+                    
+                    string size = ofToString(t.second->getWidth()) + " x " + ofToString(t.second->getHeight());
+                    ImGui::Text(size.c_str());
+                    
+                    if (ImGui::Button("Delete")) {
+                        ImGui::CloseCurrentPopup();
+                        eraseTexName = t.first;
+                        texErase = true;
+                        ofFile::removeFile(files->getPath() + "/textures/" + eraseTexName);
+                    }
+                    ImGui::EndPopup();
+                }
+                ImGui::PopID();
+                
+                string s = t.first;
+                ImGui::Text(s.c_str());
+                
+                ImGui::EndChild();
+                index++;
+            }
+            ImGui::EndChild();
+            ImGui::End();
+        }
+    }
+}
 
-			int materialIndex = 0;
-			for (auto elm : materials) {
-				char label[128];
-				string name = elm.first;
-				sprintf(label, name.c_str(), materialIndex);
-				if (ImGui::Selectable(label, selectedMaterial == materialIndex)) {
-					selectedMaterial = materialIndex;
-					currentMaterialKey = elm.first;
-				}
-				materialIndex++;
-			}
-
-			ImGui::EndChild();
-			ImGui::SameLine();
-			ImGui::BeginGroup();
-			ImGui::BeginChild("material params", ImVec2(0, 400));
-			if (materials.find(currentMaterialKey) != materials.end()) {
-				ofxPBRMaterial* material = materials[currentMaterialKey].first;
-				MaterialParams* params = materials[currentMaterialKey].second;
-
-				// base color
-				ImGui::Text("base color");
-				ImTextureID baseColorId;
-				if (material->baseColorMap != nullptr && material->baseColorMap->isAllocated()) {
-					baseColorId = (ImTextureID)(uintptr_t)material->baseColorMap->getTextureData().textureID;
-				}else{
-					baseColorId = 0x0;
-					material->enableBaseColorMap = false;
-				}
-				ImGui::PushID(0);
-				if (ImGui::ImageButton(baseColorId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-					showTextureWindow = true;
-					currentId = 0;
-				}
-				if (ImGui::BeginPopupContextItem("delete"))
-				{
-					if (ImGui::Button("Delete")) {
-						ImGui::CloseCurrentPopup();
-						material->enableBaseColorMap = false;
-						material->baseColorMap = nullptr;
-						params->baseColorTex = "";
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::SameLine();
-				ImGui::BeginGroup();
-				ImGui::ColorEdit4("", &material->baseColor[0]);
-				ImGui::Checkbox("enable texture", &material->enableBaseColorMap);
-				ImGui::EndGroup();
-				ImGui::PopID();
-				ImGui::Spacing();
-
-				// roughness
-				ImGui::Text("roughness");
-				ImTextureID roughnessId;
-				if (material->roughnessMap != nullptr && material->roughnessMap->isAllocated()) {
-					roughnessId = (ImTextureID)(uintptr_t)material->roughnessMap->getTextureData().textureID;
-				}
-				else {
-					roughnessId = 0x0;
-					material->enableRoughnessMap = false;
-				}
-				ImGui::PushID(1);
-				if (ImGui::ImageButton(roughnessId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-					showTextureWindow = true;
-					currentId = 1;
-				}
-				if (ImGui::BeginPopupContextItem("delete"))
-				{
-					if (ImGui::Button("Delete")) {
-						ImGui::CloseCurrentPopup();
-						material->enableRoughnessMap = false;
-						material->roughnessMap = nullptr;
-						params->roughnessTex = "";
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::SameLine();
-				ImGui::BeginGroup();
-				ImGui::SliderFloat("", &material->roughness, 0.0, 1.0);
-				ImGui::Checkbox("enable texture", &material->enableRoughnessMap);
-				ImGui::EndGroup();
-				ImGui::PopID();
-				ImGui::Spacing();
-
-				// metallic
-				ImGui::Text("metallic");
-				ImTextureID metallicId;
-				if (material->metallicMap != nullptr && material->metallicMap->isAllocated()) {
-					metallicId = (ImTextureID)(uintptr_t)material->metallicMap->getTextureData().textureID;
-				}
-				else {
-					metallicId = 0x0;
-					material->enableMetallicMap = false;
-				}
-				ImGui::PushID(2);
-				if (ImGui::ImageButton(metallicId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-					showTextureWindow = true;
-					currentId = 2;
-				}
-				if (ImGui::BeginPopupContextItem("delete"))
-				{
-					if (ImGui::Button("Delete")) {
-						ImGui::CloseCurrentPopup();
-						material->enableMetallicMap = false;
-						material->metallicMap = nullptr;
-						params->metallicTex = "";
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::SameLine();
-				ImGui::BeginGroup();
-				ImGui::SliderFloat("", &material->metallic, 0.0, 1.0);
-				ImGui::Checkbox("enable texture", &material->enableMetallicMap);
-				ImGui::EndGroup();
-				ImGui::PopID();
-				ImGui::Spacing();
-
-				// normal
-				ImGui::Text("normal");
-				ImTextureID normalId;
-				if (material->normalMap != nullptr && material->normalMap->isAllocated()) {
-					normalId = (ImTextureID)(uintptr_t)material->normalMap->getTextureData().textureID;
-				}
-				else {
-					normalId = 0x0;
-					material->enableNormalMap = false;
-				}
-				ImGui::PushID(3);
-				if (ImGui::ImageButton(normalId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-					showTextureWindow = true;
-					currentId = 3;
-				}
-				if (ImGui::BeginPopupContextItem("delete"))
-				{
-					if (ImGui::Button("Delete")) {
-						ImGui::CloseCurrentPopup();
-						material->enableNormalMap = false;
-						material->normalMap = nullptr;
-						params->normalTex = "";
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::SameLine();
-				ImGui::BeginGroup();
-				ImGui::Checkbox("enable texture", &material->enableNormalMap);
-				ImGui::SliderFloat("", &material->normalVal, 0.0, 1.0);
-				ImGui::PopID();
-				ImGui::EndGroup();
-
-				// occlusion
-				ImGui::Text("occlusion");
-				ImTextureID occlusionId;
-				if (material->occlusionMap != nullptr && material->occlusionMap->isAllocated()) {
-					occlusionId = (ImTextureID)(uintptr_t)material->occlusionMap->getTextureData().textureID;
-				}
-				else {
-					occlusionId = 0x0;
-					material->enableOcclusionMap = false;
-				}
-				ImGui::PushID(4);
-				if (ImGui::ImageButton(occlusionId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-					showTextureWindow = true;
-					currentId = 4;
-				}
-				if (ImGui::BeginPopupContextItem("delete"))
-				{
-					if (ImGui::Button("Delete")) {
-						ImGui::CloseCurrentPopup();
-						material->enableOcclusionMap = false;
-						material->occlusionMap = nullptr;
-						params->occlusionTex = "";
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::SameLine();
-				ImGui::BeginGroup();
-				ImGui::Checkbox("enable texture", &material->enableOcclusionMap);
-				ImGui::EndGroup();
-				ImGui::PopID();
-
-				// emission
-				ImGui::Text("emission");
-				ImTextureID emissionId;
-				if (material->emissionMap != nullptr && material->emissionMap->isAllocated()) {
-					emissionId = (ImTextureID)(uintptr_t)material->emissionMap->getTextureData().textureID;
-				}
-				else {
-					emissionId = 0x0;
-					material->enableEmissionMap = false;
-				}
-				ImGui::PushID(5);
-				if (ImGui::ImageButton(emissionId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-					showTextureWindow = true;
-					currentId = 5;
-				}
-				if (ImGui::BeginPopupContextItem("delete"))
-				{
-					if (ImGui::Button("Delete")) {
-						ImGui::CloseCurrentPopup();
-						material->enableEmissionMap = false;
-						material->emissionMap = nullptr;
-						params->emissionTex = "";
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::SameLine();
-				ImGui::BeginGroup();
-				ImGui::Checkbox("enable texture", &material->enableEmissionMap);
-				ImGui::EndGroup();
-				ImGui::PopID();
-
-				// detail base color
-				ImGui::Text("detail base color");
-				ImTextureID detailBaseColorId;
-				if (material->detailBaseColorMap != nullptr && material->detailBaseColorMap->isAllocated()) {
-					detailBaseColorId = (ImTextureID)(uintptr_t)material->detailBaseColorMap->getTextureData().textureID;
-				}
-				else {
-					detailBaseColorId = 0x0;
-					material->enableDetailBaseColorMap = false;
-				}
-				ImGui::PushID(6);
-				if (ImGui::ImageButton(detailBaseColorId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-					showTextureWindow = true;
-					currentId = 6;
-				}
-				if (ImGui::BeginPopupContextItem("delete"))
-				{
-					if (ImGui::Button("Delete")) {
-						ImGui::CloseCurrentPopup();
-						material->enableDetailBaseColorMap = false;
-						material->detailBaseColorMap = nullptr;
-						params->detailBaseColorTex = "";
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::SameLine();
-				ImGui::BeginGroup();
-				ImGui::Checkbox("enable texture", &material->enableDetailBaseColorMap);
-				ImGui::EndGroup();
-				ImGui::PopID();
-
-				// detail normal
-				ImGui::Text("detail normal");
-				ImTextureID detailNormalId;
-				if (material->detailNormalMap != nullptr && material->detailNormalMap->isAllocated()) {
-					detailNormalId = (ImTextureID)(uintptr_t)material->detailNormalMap->getTextureData().textureID;
-				}
-				else {
-					detailNormalId = 0x0;
-					material->enableDetailNormalMap = false;
-				}
-				ImGui::PushID(7);
-				if (ImGui::ImageButton(detailNormalId, ImVec2(40, 40), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-					showTextureWindow = true;
-					currentId = 7;
-				}
-				if (ImGui::BeginPopupContextItem("delete"))
-				{
-					if (ImGui::Button("Delete")) {
-						ImGui::CloseCurrentPopup();
-						material->enableDetailNormalMap = false;
-						material->detailNormalMap = nullptr;
-						params->detailNormalTex = "";
-					}
-					ImGui::EndPopup();
-				}
-				ImGui::SameLine();
-				ImGui::BeginGroup();
-				ImGui::Checkbox("enable texture", &material->enableDetailNormalMap);
-				ImGui::EndGroup();
-				ImGui::PopID();
-
-				ImGui::Text("texture repeat");
-				ImGui::PushID(8);
-				ImGui::DragFloat2("", &material->textureRepeat[0]);
-				ImGui::PopID();
-
-				ImGui::Text("detail texture repeat");
-				ImGui::PushID(9);
-				ImGui::DragFloat2("", &material->detailTextureRepeat[0]);
-				ImGui::PopID();
-			}
-			ImGui::EndChild();
-			ImGui::EndGroup();
-		}
-
-		if (textureLoaded) {
-			ofDisableArbTex();
-			ofTexture* texture = new ofTexture();
-			files->textures.insert(map<string, ofTexture*>::value_type(currentFile.getFileName(), texture));
-			ofxPBRImage img;
-			img.load(currentFile.getAbsolutePath());
-			*files->textures[currentFile.getFileName()] = img.getTexture();
-			ofEnableArbTex();
-
-			textureLoaded = false;
-		}
-
-		if (texErase) {
-			files->textures[eraseTexName]->clear();
-			files->textures[eraseTexName] = nullptr;
-			files->textures.erase(eraseTexName);
-			texErase = false;
-		}
-
-		if (showTextureWindow) {
-			if (materials.find(currentMaterialKey) != materials.end()) {
-				ofxPBRMaterial* material = materials[currentMaterialKey].first;
-				MaterialParams* params = materials[currentMaterialKey].second;
-
-                ImGui::SetNextWindowSize(ImVec2(300, 150), ImGuiSetCond_FirstUseEver);
-				ImGui::Begin("Textures", &showTextureWindow);
-				if (ImGui::Button("load texture")) {
-					ofFileDialogResult openFileResult = ofSystemLoadDialog("Select a image");
-					if (openFileResult.bSuccess) {
-						if (files->textures.find(openFileResult.getName()) == files->textures.end()) {
-							currentFile.open(openFileResult.getPath());
-							ofFile::copyFromTo(currentFile.getAbsolutePath(), files->getPath() + "/textures/" + currentFile.getFileName());
-							textureLoaded = true;
-						}
-					}
-				}
-
-				int totalWidth = -ImGui::GetStyle().ItemSpacing.x;
-				int index = 0;
-
-				ImGui::BeginChild("textures");
-				for (auto t : files->textures)
-				{
-					ofVec2f btnRes = ofVec2f(100, 100);
-					totalWidth += btnRes.x;
-					totalWidth += ImGui::GetStyle().ItemSpacing.x;
-					if (index != 0 && ImGui::GetWindowWidth() > totalWidth) {
-						ImGui::SameLine();
-					}
-					else if (index != 0) {
-						totalWidth = btnRes.x;
-					}
-
-					ImTextureID textureID = (ImTextureID)(uintptr_t)t.second->getTextureData().textureID;
-					ImGui::BeginChild(index, ImVec2(100, 125), false);
-					ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
-					if (ImGui::ImageButton(textureID, ImVec2(btnRes.x, btnRes.y), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-						
-						switch (currentId) {
-						case 0:
-							material->baseColorMap = t.second;
-							params->baseColorTex = t.first;
-							material->enableBaseColorMap = true;
-							break;
-
-						case 1:
-							material->roughnessMap = t.second;
-							params->roughnessTex = t.first;
-							material->enableRoughnessMap = true;
-							break;
-
-						case 2:
-							material->metallicMap = t.second;
-							params->metallicTex = t.first;
-							material->enableMetallicMap = true;
-							break;
-
-						case 3:
-							material->normalMap = t.second;
-							params->normalTex = t.first;
-							material->enableNormalMap = true;
-							break;
-
-						case 4:
-							material->occlusionMap = t.second;
-							params->occlusionTex = t.first;
-							material->enableOcclusionMap = true;
-							break;
-
-						case 5:
-							material->emissionMap = t.second;
-							params->emissionTex = t.first;
-							material->enableEmissionMap = true;
-							break;
-
-						case 6:
-							material->detailBaseColorMap = t.second;
-							params->detailBaseColorTex = t.first;
-							material->enableDetailBaseColorMap = true;
-							break;
-
-						case 7:
-							material->detailNormalMap = t.second;
-							params->detailNormalTex = t.first;
-							material->enableDetailNormalMap = true;
-							break;
-
-						default:
-							break;
-						}
-						showTextureWindow = false;
-					}
-					ImGui::PushID(index);
-					if (ImGui::BeginPopupContextItem("detail"))
-					{
-						string s = t.first;
-						ImGui::Text(s.c_str());
-
-						string size = ofToString(t.second->getWidth()) + " x " + ofToString(t.second->getHeight());
-						ImGui::Text(size.c_str());
-
-						if (ImGui::Button("Delete")) {
-							ImGui::CloseCurrentPopup();
-							eraseTexName = t.first;
-							texErase = true;
-							ofFile::removeFile(files->getPath() + "/textures/" + eraseTexName);
-						}
-						ImGui::EndPopup();
-					}
-					ImGui::PopID();
-
-					string s = t.first;
-					ImGui::Text(s.c_str());
-					
-					ImGui::EndChild();
-					index++;
-				}
-				ImGui::EndChild();
-				ImGui::End();
-			}
-		}
-
-	}
-    if(!enableOtherGui){
-        ImGui::End();
-        gui.end();
+void ofxPBRHelper::drawLights(){
+    for(auto l : lights){
+        ofxPBRLight* light = l.second.first;
+        switch (light->getLightType()) {
+            case LightType_Sky:
+            case LightType_Directional:
+                ofPushStyle();
+                ofNoFill();
+                ofPushMatrix();
+                ofMultMatrix(light->getGlobalTransformMatrix());
+                ofSetSphereResolution(16);
+                ofDrawSphere(0, 0, 0, 100);
+                ofDrawBox(0, 0, -light->getFarClip() / 2, pbr->getDepthMapResolution(), pbr->getDepthMapResolution(), light->getFarClip());
+                ofPopMatrix();
+                ofPopStyle();
+                break;
+                
+            case LightType_Point:
+                ofPushStyle();
+                ofNoFill();
+                ofPushMatrix();
+                ofSetCircleResolution(64);
+                ofTranslate(light->getGlobalTransformMatrix().getTranslation());
+                ofSetSphereResolution(16);
+                ofDrawSphere(0, 0, 0, 100);
+                ofPushMatrix();
+                ofDrawCircle(0, 0, 0, light->getPointLightRadius());
+                ofRotateX(90);
+                ofDrawCircle(0, 0, 0, light->getPointLightRadius());
+                ofRotateY(90);
+                ofDrawCircle(0, 0, 0, light->getPointLightRadius());
+                ofPopMatrix();
+                ofPopMatrix();
+                ofPopStyle();
+                break;
+                
+            case LightType_Spot:
+                ofPushStyle();
+                ofNoFill();
+                ofPushMatrix();
+                ofMultMatrix(light->getGlobalTransformMatrix());
+                ofSetSphereResolution(16);
+                ofDrawSphere(0, 0, 0, 100);
+                ofPushMatrix();
+                ofRotateX(-90);
+                ofRotateY(45);
+                ofSetConeResolution(4, 0);
+                ofDrawCone(0, light->getFarClip() / 2, 0, light->getFarClip() * tan(ofDegToRad(light->getSpotLightCutoff())), light->getFarClip());
+                ofPopMatrix();
+                ofPopMatrix();
+                ofPopStyle();
+                break;
+                
+            default:
+                break;
+        }
     }
 }
 
 void ofxPBRHelper::addLight(ofxPBRLight * light, string name)
 {
-	lights.insert(map<string, pair<ofxPBRLight*, LightParams>>::value_type(name, pair<ofxPBRLight*, LightParams>(light, LightParams())));
-	pbr->addLight(light);
+    lights.insert(map<string, pair<ofxPBRLight*, LightParams>>::value_type(name, pair<ofxPBRLight*, LightParams>(light, LightParams())));
+    pbr->addLight(light);
     setLightsFromJson(name);
 }
 
@@ -932,6 +994,8 @@ void ofxPBRHelper::addSharedCubeMap(map<string, pair<ofxPBRCubeMap*, CubeMapPara
         setCubeMapsFromJson(cubeMap.first);
     }
 }
+
+// JSON
 
 void ofxPBRHelper::loadJsonFiles()
 {
@@ -1198,7 +1262,7 @@ void ofxPBRHelper::setLightsFromJson(string lightName)
 
 		light->setColor(params->color);
 		light->setIntensity(params->intensity);
-		light->setRadius(params->radius);
+		light->setPointLightRadius(params->radius);
 		light->setSpotLightCutoff(params->cutoff);
 		light->setSpotLightFactor(params->spotFactor);
 

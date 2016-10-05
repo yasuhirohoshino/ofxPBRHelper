@@ -45,6 +45,9 @@ void ofApp::draw(){
     ofDisableDepthTest();
     ofEnableAlphaBlending();
     
+    cam.begin();
+    pbrHelper.drawLights();
+    cam.end();
     gui.begin();
     {
         ImGui::Begin("control panel");
@@ -107,12 +110,12 @@ void ofApp::renderScene(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-
+//    cam.enableMouseInput();
 }
 
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
-
+//    cam.disableMouseInput();
 }
 
 //--------------------------------------------------------------

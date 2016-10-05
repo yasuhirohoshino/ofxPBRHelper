@@ -11,13 +11,21 @@ class ofxPBRHelper {
 public:
 	void setup(ofxPBR* pbr, string folderPath, bool enableOtherGui = false);
 	void drawGui();
+    void drawLights();
+    
 	void addLight(ofxPBRLight* light, string name);
 	void addMaterial(ofxPBRMaterial* material, string name);
 	void addCubeMap(ofxPBRCubeMap* cubeMap, string name);
+    
     void addSharedMaterial(map<string, pair<ofxPBRMaterial*, MaterialParams*>> sharedMaterials);
     void addSharedCubeMap(map<string, pair<ofxPBRCubeMap*, CubeMapParams*>> sharedCubeMaps);
 
 private:
+    void drawGeneralGui();
+    void drawCubeMapsGui();
+    void drawLightsGui();
+    void drawMaterialsGui();
+    
 	void loadJsonFiles();
 	void saveJson(string fileName);
 	void setMaterialsFromJson(string materialName);
@@ -69,7 +77,6 @@ private:
 	int currentId = 0;
 	int selectedMaterial = 0;
 
-	ofFbo shadowMap;
 	ImTextureID depthMapId;
 
 	bool Combo(const char* label, int* current_item, const std::vector<std::string>& items, int height_in_items = -1)
