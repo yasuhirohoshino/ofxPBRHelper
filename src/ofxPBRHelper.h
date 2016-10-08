@@ -3,6 +3,7 @@
 #include "ofxPBR.h"
 #include "ofxImGui.h"
 #include "ofxJSON.h"
+#include "ImGuizmo.h"
 #include "ofxPBRFiles.h"
 #include "ofxPBRImage.h"
 #include "ofxPBRHelperParams.h"
@@ -10,7 +11,7 @@
 class ofxPBRHelper {
 public:
 	void setup(ofxPBR* pbr, string folderPath, bool enableOtherGui = false);
-	void drawGui();
+	void drawGui(ofCamera* cam);
     void drawLights();
     
 	void addLight(ofxPBRLight* light, string name);
@@ -89,4 +90,9 @@ private:
 			items.size(), 
 			height_in_items);
 	};
+    
+    ofMatrix4x4 mat;
+    ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE gizmoMode = ImGuizmo::WORLD;
+    ofCamera * cam;
 };

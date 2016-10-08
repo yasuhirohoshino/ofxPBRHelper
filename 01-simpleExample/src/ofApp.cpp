@@ -12,6 +12,7 @@ void ofApp::setup(){
     ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
     pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);
     pbrHelper.addLight(&pbrLight1, "light1");
+    pbrHelper.addLight(&pbrLight2, "light2");
     pbrHelper.addMaterial(&floorMaterial, "floor");
     pbrHelper.addMaterial(&cubeMaterial, "cube");
     pbrHelper.addMaterial(&sphereMaterial, "sphere");
@@ -50,6 +51,19 @@ void ofApp::draw(){
     cam.end();
     gui.begin();
     {
+        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT)){
+            cam.enableMouseInput();
+        }else{
+            cam.disableMouseInput();
+        }
+        if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL)){
+            cout << ImGui::GetIO().MouseDown[1] << endl;
+            if(ImGui::GetIO().MouseDown[1] != 0.0){
+                cam.truck(-ImGui::GetIO().MouseDelta.x * 2);
+                cam.boom(ImGui::GetIO().MouseDelta.y * 2);
+            }
+        }
+        
         ImGui::Begin("control panel");
         {
             ImGui::Checkbox("show gui", &showGui);
@@ -64,7 +78,7 @@ void ofApp::draw(){
         ImGui::End();
         if(showGui){
             ImGui::Begin("ofxPBR");
-            pbrHelper.drawGui();
+            pbrHelper.drawGui(&cam);
             ImGui::End();
         }
     }
@@ -75,7 +89,6 @@ void ofApp::draw(){
 void ofApp::renderScene(){
     ofEnableDepthTest();
     pbr.begin();
-    
     planeMaterial.begin(&pbr);
     ofDrawPlane(-350 * 2, 150, 0, 300, 300);
     planeMaterial.end();
@@ -110,12 +123,12 @@ void ofApp::renderScene(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-//    cam.enableMouseInput();
+
 }
 
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
-//    cam.disableMouseInput();
+
 }
 
 //--------------------------------------------------------------
@@ -130,7 +143,7 @@ void ofApp::mouseDragged(int x, int y, int button){
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
-
+    
 }
 
 //--------------------------------------------------------------

@@ -21,10 +21,16 @@ void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool enableOtherGui)
         currentJsonIndex = -1;
     }
 	textureLoaded = false;
+    
+    mat = ofMatrix4x4(1,0,0,0,
+                      0,1,0,0,
+                      0,0,1,0,
+                      0,0,0,1);
 }
 
-void ofxPBRHelper::drawGui()
+void ofxPBRHelper::drawGui(ofCamera* cam)
 {
+    this->cam = cam;
     if(!enableOtherGui){
         gui.begin();
         ImGui::Begin("ofxPBRHelper");
@@ -35,6 +41,11 @@ void ofxPBRHelper::drawGui()
     drawLightsGui();
     drawMaterialsGui();
     
+//    ImGuizmo::BeginFrame();
+//    ImGuizmo::Manipulate(cam->getModelViewMatrix().getPtr(), cam->getProjectionMatrix().getPtr(), ImGuizmo::ROTATE, gizmoMode, mat.getPtr());
+//    if(currentLightKey != ""){
+//        lights[currentLightKey].first->setTransformMatrix(mat);
+//    }
     if(!enableOtherGui){
         ImGui::End();
         gui.end();
@@ -293,6 +304,7 @@ void ofxPBRHelper::drawLightsGui(){
                 selectedLight = lightIndex;
                 currentLightKey = elm.first;
                 depthMapId = (ImTextureID)(uintptr_t)pbr->getDepthMap(lightIndex)->getTextureData().textureID;
+                mat = lights[currentLightKey].first->getGlobalTransformMatrix();
             }
             lightIndex++;
         }
@@ -332,13 +344,43 @@ void ofxPBRHelper::drawLightsGui(){
             
             if (light->getLightType() != LightType_Sky) {
                 
-                if (ImGui::DragFloat3("position", &lightParam->pos[0])) {
-                    light->setPosition(lightParam->pos);
-                    light->lookAt(lightParam->target);
+//                if (ImGui::DragFloat3("position", &lightParam->pos[0])) {
+//                    light->setPosition(lightParam->pos);
+//                    light->lookAt(lightParam->target);
+//                }
+//                
+//                if (ImGui::DragFloat3("target", &lightParam->target[0])) {
+//                    light->lookAt(lightParam->target);
+//                }
+                
+                if (gizmoOperation != ImGuizmo::SCALE)
+                {
+                    if (ImGui::RadioButton("Local", gizmoMode == ImGuizmo::LOCAL))
+                        gizmoMode = ImGuizmo::LOCAL;
+                    ImGui::SameLine();
+                    if (ImGui::RadioButton("World", gizmoMode == ImGuizmo::WORLD))
+                        gizmoMode = ImGuizmo::WORLD;
                 }
                 
-                if (ImGui::DragFloat3("target", &lightParam->target[0])) {
-                    light->lookAt(lightParam->target);
+                ImGuizmo::BeginFrame();
+                if (ImGui::RadioButton("Translate", gizmoOperation == ImGuizmo::TRANSLATE))
+                    gizmoOperation = ImGuizmo::TRANSLATE;
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Rotate", gizmoOperation == ImGuizmo::ROTATE))
+                    gizmoOperation = ImGuizmo::ROTATE;
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Scale", gizmoOperation == ImGuizmo::SCALE))
+                    gizmoOperation = ImGuizmo::SCALE;
+                
+                float matrixTranslation[3], matrixRotation[3], matrixScale[3];
+                ImGuizmo::DecomposeMatrixToComponents(mat.getPtr(), matrixTranslation, matrixRotation, matrixScale);
+                ImGui::DragFloat3("Tr", matrixTranslation);
+                ImGui::InputFloat3("Rt", matrixRotation);
+                ImGui::DragFloat3("Sc", matrixScale);
+                ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, mat.getPtr());
+                ImGuizmo::Manipulate(cam->getModelViewMatrix().getPtr(), cam->getProjectionMatrix().getPtr(), gizmoOperation, gizmoMode, mat.getPtr());
+                if(currentLightKey != ""){
+                    light->setTransformMatrix(mat);
                 }
                 
                 if (ImGui::ColorEdit3("color", &lightParam->color[0])) {
@@ -377,6 +419,7 @@ void ofxPBRHelper::drawLightsGui(){
                     
                     if (ImGui::DragFloat("skyLightDistance", &lightParam->skyLightRadius, 1)) {
                         light->setSkyLightCoordinate(-PI / 2 + (lightParam->skyLightCoord.x / canvas_size.x) * 2 * PI, (lightParam->skyLightCoord.y / canvas_size.y) * PI, lightParam->skyLightRadius);
+                        light->setFarClip(lightParam->skyLightRadius);
                     }
                     
                     if (ImGui::DragFloat3("color", &lightParam->color[0])) {
@@ -400,6 +443,8 @@ void ofxPBRHelper::drawLightsGui(){
             if (light->getLightType() == LightType_Spot) {
                 if (ImGui::DragFloat("distance", &lightParam->radius)) {
                     light->setSpotLightDistance(lightParam->radius);
+                    light->setFarClip(lightParam->radius);
+                    light->setNearClip(lightParam->radius * 0.05);
                 }
                 if (ImGui::DragFloat("cutoff", &lightParam->cutoff, 0.1, 0.0, 90.0)) {
                     light->setSpotLightCutoff(lightParam->cutoff);
@@ -429,16 +474,16 @@ void ofxPBRHelper::drawLightsGui(){
             }
             
             if (light->getShadowType() != ShadowType_None) {
-                if (ImGui::DragFloat("nearClip", &lightParam->nearClip)) {
-                    light->setNearClip(lightParam->nearClip);
-                }
+//                if (ImGui::DragFloat("nearClip", &lightParam->nearClip)) {
+//                    light->setNearClip(lightParam->nearClip);
+//                }
                 
-                if (ImGui::DragFloat("farClip", &lightParam->farClip)) {
-                    light->setFarClip(lightParam->farClip);
-                }
+//                if (ImGui::DragFloat("farClip", &lightParam->farClip)) {
+//                    light->setFarClip(lightParam->farClip);
+//                }
                 
                 if (ImGui::DragFloat("scale", &lightParam->scale, 0.1, 0.0, 100.0, "%.2f")) {
-                    light->setScale(lightParam->scale);
+                    light->setScale(lightParam->scale, lightParam->scale, 1);
                 }
             }
             
@@ -453,8 +498,9 @@ void ofxPBRHelper::drawLightsGui(){
                 //    light->setSoftShadowExponent(lightParam->softShadowExponent);
                 //}
             }
-            
-            ImGui::Image(depthMapId, ImVec2(256, 256));
+            if (light->getShadowType() != ShadowType_None) {
+                ImGui::Image(depthMapId, ImVec2(256, 256));
+            }
         }
         
         ImGui::EndChild();
@@ -961,6 +1007,7 @@ void ofxPBRHelper::addLight(ofxPBRLight * light, string name)
     lights.insert(map<string, pair<ofxPBRLight*, LightParams>>::value_type(name, pair<ofxPBRLight*, LightParams>(light, LightParams())));
     pbr->addLight(light);
     setLightsFromJson(name);
+    mat = light->getGlobalTransformMatrix();
 }
 
 void ofxPBRHelper::addMaterial(ofxPBRMaterial * material, string name)

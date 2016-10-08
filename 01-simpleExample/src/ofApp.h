@@ -30,7 +30,7 @@ class ofApp : public ofBaseApp{
     
     ofxPBRCubeMap cubeMap1;
     ofxPBRMaterial floorMaterial, cubeMaterial, sphereMaterial, coneMaterial, cylinderMaterial, planeMaterial;
-    ofxPBRLight pbrLight1;
+    ofxPBRLight pbrLight1, pbrLight2;
     ofxPBR pbr;
     ofxPBRHelper pbrHelper;
     ofxImGui gui;
