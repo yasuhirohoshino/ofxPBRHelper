@@ -147,6 +147,18 @@ Desktop.ini
 icon.rc
 
 #########################
+# XCode
+#########################
+
+*.xcconfig
+*.pbxproj
+*.xcscheme
+*.plist
+config.make
+Makefile
+*/bin/data/ofxPBRAssets/
+
+#########################
 # ofxPBR
 #########################
 
