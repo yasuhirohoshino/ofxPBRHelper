@@ -27,6 +27,9 @@ private:
     void drawLightsGui();
     void drawMaterialsGui();
     
+    void drawPanoramasGui();
+    void drawTexturesGui();
+    
 	void loadJsonFiles();
 	void saveJson(string fileName);
 	void setMaterialsFromJson(string materialName);

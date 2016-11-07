@@ -39,7 +39,7 @@ void ofApp::draw(){
     
 	pbr.updateDepthMaps();
     cam.begin();
-    pbr.drawEnvironment(&cam);
+    pbr.drawEnvironment();
     scene();
     cam.end();
     
@@ -57,10 +57,12 @@ void ofApp::draw(){
             cam.disableMouseInput();
         }
         if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL)){
-            cout << ImGui::GetIO().MouseDown[1] << endl;
             if(ImGui::GetIO().MouseDown[1] != 0.0){
                 cam.truck(-ImGui::GetIO().MouseDelta.x * 2);
                 cam.boom(ImGui::GetIO().MouseDelta.y * 2);
+            }
+            if(ImGui::GetIO().MouseWheel != 0.0){
+                cam.dolly(ImGui::GetIO().MouseWheel * 10.0);
             }
         }
         

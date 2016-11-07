@@ -40,12 +40,8 @@ void ofxPBRHelper::drawGui(ofCamera* cam)
     drawCubeMapsGui();
     drawLightsGui();
     drawMaterialsGui();
+    drawTexturesGui();
     
-//    ImGuizmo::BeginFrame();
-//    ImGuizmo::Manipulate(cam->getModelViewMatrix().getPtr(), cam->getProjectionMatrix().getPtr(), ImGuizmo::ROTATE, gizmoMode, mat.getPtr());
-//    if(currentLightKey != ""){
-//        lights[currentLightKey].first->setTransformMatrix(mat);
-//    }
     if(!enableOtherGui){
         ImGui::End();
         gui.end();
@@ -53,7 +49,7 @@ void ofxPBRHelper::drawGui(ofCamera* cam)
 }
 
 void ofxPBRHelper::drawGeneralGui(){
-    if(ImGui::CollapsingHeader("General")){
+    if(ImGui::CollapsingHeader("General", 0, true, true)){
         if (ImGui::Button("save")) {
             if (settings.isNull() == true && currentJsonIndex == -1) {
                 ImGui::OpenPopup("Save As ...");
@@ -134,13 +130,8 @@ void ofxPBRHelper::drawGeneralGui(){
 }
 
 void ofxPBRHelper::drawCubeMapsGui(){
-    if(ImGui::CollapsingHeader("Cube Map")){
-        
-        //            int button = 0;
-        //            ImGui::RadioButton("unique", &button, 0); ImGui::SameLine();
-        //            ImGui::RadioButton("common", &button, 1);
+    if(ImGui::CollapsingHeader("Cube Map", 0, true, true)){
         ImGui::BeginChild("cubeMap list", ImVec2(150, 200), true);
-        
         int cubeMapIndex = 0;
         for (auto elm : cubeMaps) {
             char label[128];
@@ -155,8 +146,10 @@ void ofxPBRHelper::drawCubeMapsGui(){
         ImGui::EndChild();
         ImGui::SameLine();
         
+//        ImGui::SetNextWindowContentSize(ImVec2(200, 0));
+        ImGui::PushItemWidth(200);
         ImGui::BeginGroup();
-        ImGui::BeginChild("cubeMap params", ImVec2(0, 200));
+//        ImGui::BeginChild("cubeMap params", ImVec2(0, 200));
         if (cubeMaps.find(selectedCubeMapKey) != cubeMaps.end()) {
             if (ImGui::Button("set panorama")) {
                 showPanoramaWindow = !showPanoramaWindow;
@@ -184,86 +177,6 @@ void ofxPBRHelper::drawCubeMapsGui(){
                 panoramaErase = false;
             }
             
-            if (showPanoramaWindow) {
-                ImGui::SetNextWindowSize(ofVec2f(600, 300), ImGuiSetCond_FirstUseEver);
-                ImGui::Begin("Panorama", &showPanoramaWindow);
-                if (ImGui::Button("load image")) {
-                    ofFileDialogResult openFileResult = ofSystemLoadDialog("Select a image");
-                    if (openFileResult.bSuccess) {
-                        currentPanoramaFile.open(openFileResult.getPath());
-                        panoramaLoaded = true;
-                    }
-                }
-                ImGui::SameLine();
-                const char* res[] = { "128", "256", "512", "1024", "2048" };
-                if (ImGui::Combo("resolution", &selectedCubeMapRes, res, 5)) {
-                    CubeMapParams* p = cubeMaps[selectedCubeMapKey].second;
-                    switch (selectedCubeMapRes)
-                    {
-                        case 0:
-                            p->resolution = 128;
-                            break;
-                        case 1:
-                            p->resolution = 256;
-                            break;
-                        case 2:
-                            p->resolution = 512;
-                            break;
-                        case 3:
-                            p->resolution = 1024;
-                            break;
-                        case 4:
-                            p->resolution = 2048;
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                int index = 0;
-                int totalWidth = 0;
-                for (auto p : files->panoramas) {
-                    ofVec2f btnRes = ofVec2f(200, 100);
-                    totalWidth += btnRes.x;
-                    totalWidth += ImGui::GetStyle().ItemSpacing.x;
-                    if (index != 0 && ImGui::GetWindowWidth() > totalWidth) {
-                        ImGui::SameLine();
-                    }
-                    else if (index != 0) {
-                        totalWidth = btnRes.x + ImGui::GetStyle().ItemSpacing.x;
-                    }
-                    
-                    ImGui::BeginChild(index, ImVec2(200, 125), false);
-                    ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
-                    ImTextureID textureID = (ImTextureID)(uintptr_t)p.second->getTextureData().textureID;
-                    if (ImGui::ImageButton(textureID, ImVec2(200, 100), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
-                        cubeMaps[selectedCubeMapKey].second->url = files->getPath() + "/panoramas/" + p.first;
-                        cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second->resolution, true, files->getPath() + "/cubemapCache/");
-                        showPanoramaWindow = false;
-                    }
-                    ImGui::PushID(index);
-                    if (ImGui::BeginPopupContextItem("detail"))
-                    {
-                        string s = p.first;
-                        ImGui::Text(s.c_str());
-                        
-                        if (ImGui::Button("Delete")) {
-                            ImGui::CloseCurrentPopup();
-                            erasePanoramaName = p.first;
-                            panoramaErase = true;
-                            ofFile::removeFile(files->getPath() + "/panoramas/" + erasePanoramaName);
-                            ofFile::removeFile(files->getPath() + "/panoramas_small/" + erasePanoramaName);
-                        }
-                        ImGui::EndPopup();
-                    }
-                    ImGui::PopID();
-                    string s = p.first;
-                    ImGui::Text(s.c_str());
-                    ImGui::EndChild();
-                    index++;
-                }
-                ImGui::End();
-            }
-            
             if (cubeMaps[selectedCubeMapKey].first->isAllocated()) {
                 ImTextureID env = (ImTextureID)(uintptr_t)cubeMaps[selectedCubeMapKey].first->getPanoramaTexture()->getTextureData().textureID;
                 ImGui::Image(env, ImVec2(200, 100));
@@ -284,15 +197,100 @@ void ofxPBRHelper::drawCubeMapsGui(){
             if (ImGui::SliderFloat("env level", &params->envronmentLevel, 0.0, 1.0)) {
                 cubeMap->setEnvLevel(params->envronmentLevel);
             }
+            
+            drawPanoramasGui();
         }
-        ImGui::EndChild();
+//        ImGui::EndChild();
         ImGui::EndGroup();
+        ImGui::PopItemWidth();
+    }
+}
+
+void ofxPBRHelper::drawPanoramasGui(){
+    if (showPanoramaWindow) {
+        ImGui::SetNextWindowSize(ofVec2f(600, 300), ImGuiSetCond_FirstUseEver);
+        ImGui::Begin("Panorama", &showPanoramaWindow);
+        if (ImGui::Button("load image")) {
+            ofFileDialogResult openFileResult = ofSystemLoadDialog("Select a image");
+            if (openFileResult.bSuccess) {
+                currentPanoramaFile.open(openFileResult.getPath());
+                panoramaLoaded = true;
+            }
+        }
+        ImGui::SameLine();
+        const char* res[] = { "128", "256", "512", "1024", "2048" };
+        if (ImGui::Combo("resolution", &selectedCubeMapRes, res, 5)) {
+            CubeMapParams* p = cubeMaps[selectedCubeMapKey].second;
+            switch (selectedCubeMapRes)
+            {
+                case 0:
+                    p->resolution = 128;
+                    break;
+                case 1:
+                    p->resolution = 256;
+                    break;
+                case 2:
+                    p->resolution = 512;
+                    break;
+                case 3:
+                    p->resolution = 1024;
+                    break;
+                case 4:
+                    p->resolution = 2048;
+                    break;
+                default:
+                    break;
+            }
+        }
+        int index = 0;
+        int totalWidth = 0;
+        for (auto p : files->panoramas) {
+            ofVec2f btnRes = ofVec2f(200, 100);
+            totalWidth += btnRes.x;
+            totalWidth += ImGui::GetStyle().ItemSpacing.x;
+            if (index != 0 && ImGui::GetWindowWidth() > totalWidth) {
+                ImGui::SameLine();
+            }
+            else if (index != 0) {
+                totalWidth = btnRes.x + ImGui::GetStyle().ItemSpacing.x;
+            }
+            
+            ImGui::BeginChild(index, ImVec2(200, 125), false);
+            ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
+            ImTextureID textureID = (ImTextureID)(uintptr_t)p.second->getTextureData().textureID;
+            if (ImGui::ImageButton(textureID, ImVec2(200, 100), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
+                cubeMaps[selectedCubeMapKey].second->url = files->getPath() + "/panoramas/" + p.first;
+                cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second->resolution, true, files->getPath() + "/cubemapCache/");
+                showPanoramaWindow = false;
+            }
+            ImGui::PushID(index);
+            if (ImGui::BeginPopupContextItem("detail"))
+            {
+                string s = p.first;
+                ImGui::Text(s.c_str());
+                
+                if (ImGui::Button("Delete")) {
+                    ImGui::CloseCurrentPopup();
+                    erasePanoramaName = p.first;
+                    panoramaErase = true;
+                    ofFile::removeFile(files->getPath() + "/panoramas/" + erasePanoramaName);
+                    ofFile::removeFile(files->getPath() + "/panoramas_small/" + erasePanoramaName);
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::PopID();
+            string s = p.first;
+            ImGui::Text(s.c_str());
+            ImGui::EndChild();
+            index++;
+        }
+        ImGui::End();
     }
 }
 
 void ofxPBRHelper::drawLightsGui(){
-    if(ImGui::CollapsingHeader("Lights")){
-        ImGui::BeginChild("light list", ImVec2(150, 400), true);
+    if(ImGui::CollapsingHeader("Lights", 0, true, true)){
+        ImGui::BeginChild("light list", ImVec2(150, 600), true);
         
         int lightIndex = 0;
         
@@ -312,8 +310,9 @@ void ofxPBRHelper::drawLightsGui(){
         ImGui::EndChild();
         ImGui::SameLine();
         
+        ImGui::PushItemWidth(200);
         ImGui::BeginGroup();
-        ImGui::BeginChild("light params", ImVec2(0, 400));
+//        ImGui::BeginChild("light params", ImVec2(0, 400));
         if (lights.find(currentLightKey) != lights.end()) {
             ofxPBRLight* light = lights[currentLightKey].first;
             LightParams* lightParam = &lights[currentLightKey].second;
@@ -321,6 +320,11 @@ void ofxPBRHelper::drawLightsGui(){
             ImGui::Text(currentLightKey.c_str());
             if (ImGui::Checkbox("enable", &lightParam->enable)) {
                 light->enable(lightParam->enable);
+            }
+            ImGui::SameLine();
+            static bool enableGizmo = true;
+            if (ImGui::Checkbox("enable Gizmo", &enableGizmo)) {
+//                light->enable(lightParam->enable);
             }
             const char* lightType[] = { "directional", "spot", "point", "sky" };
             if (ImGui::Combo("light type", &lightParam->lightType, lightType, 4)) {
@@ -368,15 +372,12 @@ void ofxPBRHelper::drawLightsGui(){
                 ImGui::SameLine();
                 if (ImGui::RadioButton("Rotate", gizmoOperation == ImGuizmo::ROTATE))
                     gizmoOperation = ImGuizmo::ROTATE;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Scale", gizmoOperation == ImGuizmo::SCALE))
-                    gizmoOperation = ImGuizmo::SCALE;
                 
                 float matrixTranslation[3], matrixRotation[3], matrixScale[3];
                 ImGuizmo::DecomposeMatrixToComponents(mat.getPtr(), matrixTranslation, matrixRotation, matrixScale);
                 ImGui::DragFloat3("Tr", matrixTranslation);
                 ImGui::InputFloat3("Rt", matrixRotation);
-                ImGui::DragFloat3("Sc", matrixScale);
+                ImGui::DragFloat2("Sc", matrixScale, 0.1);
                 ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, mat.getPtr());
                 ImGuizmo::Manipulate(cam->getModelViewMatrix().getPtr(), cam->getProjectionMatrix().getPtr(), gizmoOperation, gizmoMode, mat.getPtr());
                 if(currentLightKey != ""){
@@ -422,9 +423,18 @@ void ofxPBRHelper::drawLightsGui(){
                         light->setFarClip(lightParam->skyLightRadius);
                     }
                     
+                    float matrixTranslation[3], matrixRotation[3], matrixScale[3];
+                    ImGuizmo::DecomposeMatrixToComponents(mat.getPtr(), matrixTranslation, matrixRotation, matrixScale);
+                    ImGui::DragFloat2("Sc", matrixScale, 0.1);
+                    ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, mat.getPtr());
+                    if(currentLightKey != ""){
+                        light->setTransformMatrix(mat);
+                    }
+                    
                     if (ImGui::DragFloat3("color", &lightParam->color[0])) {
                         light->setColor(lightParam->color);
                     }
+                    
                 }else{
                     ImGui::Text("cubeMap texture is not loaded.");
                 }
@@ -482,14 +492,17 @@ void ofxPBRHelper::drawLightsGui(){
 //                    light->setFarClip(lightParam->farClip);
 //                }
                 
-                if (ImGui::DragFloat("scale", &lightParam->scale, 0.1, 0.0, 100.0, "%.2f")) {
-                    light->setScale(lightParam->scale, lightParam->scale, 1);
-                }
-            }
-            
-            if (light->getShadowType() == ShadowType_Hard) {
+//                if (ImGui::DragFloat("scale", &lightParam->scale, 0.1, 0.0, 100.0, "%.2f")) {
+//                    light->setScale(lightParam->scale, lightParam->scale, 1);
+//                }
+                
                 if (ImGui::DragFloat("shadowBias", &lightParam->shadowBias, 0.0001, 0.0, 1.0, "%.4f")) {
                     light->setShadowBias(lightParam->shadowBias);
+                }
+                
+                static float shadowStrength = 1.0;
+                if (ImGui::DragFloat("shadowStrength", &shadowStrength, 1.0, 0.0, 1.0, "%.4f")) {
+                    light->setShadowStrength(shadowStrength);
                 }
             }
             
@@ -503,14 +516,15 @@ void ofxPBRHelper::drawLightsGui(){
             }
         }
         
-        ImGui::EndChild();
+//        ImGui::EndChild();
         ImGui::EndGroup();
+        ImGui::PopItemWidth();
     }
 }
 
 void ofxPBRHelper::drawMaterialsGui(){
-    if(ImGui::CollapsingHeader("Materials")){
-        ImGui::BeginChild("material list", ImVec2(150, 400), true);
+    if(ImGui::CollapsingHeader("Materials", 0, true, true)){
+        ImGui::BeginChild("material list", ImVec2(150, 600), true);
         
         int materialIndex = 0;
         for (auto elm : materials) {
@@ -526,8 +540,9 @@ void ofxPBRHelper::drawMaterialsGui(){
         
         ImGui::EndChild();
         ImGui::SameLine();
+        ImGui::PushItemWidth(200);
         ImGui::BeginGroup();
-        ImGui::BeginChild("material params", ImVec2(0, 400));
+//        ImGui::BeginChild("material params", ImVec2(0, 400));
         if (materials.find(currentMaterialKey) != materials.end()) {
             ofxPBRMaterial* material = materials[currentMaterialKey].first;
             MaterialParams* params = materials[currentMaterialKey].second;
@@ -796,8 +811,9 @@ void ofxPBRHelper::drawMaterialsGui(){
             ImGui::DragFloat2("", &material->detailTextureRepeat[0]);
             ImGui::PopID();
         }
-        ImGui::EndChild();
+//        ImGui::EndChild();
         ImGui::EndGroup();
+        ImGui::PopItemWidth();
     }
     
     if (textureLoaded) {
@@ -818,7 +834,9 @@ void ofxPBRHelper::drawMaterialsGui(){
         files->textures.erase(eraseTexName);
         texErase = false;
     }
-    
+}
+
+void ofxPBRHelper::drawTexturesGui(){
     if (showTextureWindow) {
         if (materials.find(currentMaterialKey) != materials.end()) {
             ofxPBRMaterial* material = materials[currentMaterialKey].first;
@@ -946,6 +964,7 @@ void ofxPBRHelper::drawMaterialsGui(){
 void ofxPBRHelper::drawLights(){
     for(auto l : lights){
         ofxPBRLight* light = l.second.first;
+        float radius = 0.0;
         switch (light->getLightType()) {
             case LightType_Sky:
             case LightType_Directional:
@@ -953,9 +972,11 @@ void ofxPBRHelper::drawLights(){
                 ofNoFill();
                 ofPushMatrix();
                 ofMultMatrix(light->getGlobalTransformMatrix());
-                ofSetSphereResolution(16);
-                ofDrawSphere(0, 0, 0, 100);
                 ofDrawBox(0, 0, -light->getFarClip() / 2, pbr->getDepthMapResolution(), pbr->getDepthMapResolution(), light->getFarClip());
+                radius = pbr->getDepthMapResolution() / sqrt(2);
+                for(int i=0;i<4;i++){
+                    ofDrawLine(0, 0, 0, radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), 0);
+                }
                 ofPopMatrix();
                 ofPopStyle();
                 break;
@@ -966,8 +987,6 @@ void ofxPBRHelper::drawLights(){
                 ofPushMatrix();
                 ofSetCircleResolution(64);
                 ofTranslate(light->getGlobalTransformMatrix().getTranslation());
-                ofSetSphereResolution(16);
-                ofDrawSphere(0, 0, 0, 100);
                 ofPushMatrix();
                 ofDrawCircle(0, 0, 0, light->getPointLightRadius());
                 ofRotateX(90);
@@ -984,13 +1003,13 @@ void ofxPBRHelper::drawLights(){
                 ofNoFill();
                 ofPushMatrix();
                 ofMultMatrix(light->getGlobalTransformMatrix());
-                ofSetSphereResolution(16);
-                ofDrawSphere(0, 0, 0, 100);
                 ofPushMatrix();
-                ofRotateX(-90);
-                ofRotateY(45);
-                ofSetConeResolution(4, 0);
-                ofDrawCone(0, light->getFarClip() / 2, 0, light->getFarClip() * tan(ofDegToRad(light->getSpotLightCutoff())), light->getFarClip());
+                radius = light->getSpotLightDistance() * tan(ofDegToRad(light->getSpotLightCutoff()));
+                for(int i=0;i<4;i++){
+                    ofDrawLine(0, 0, 0, radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), -light->getSpotLightDistance());
+                    ofDrawLine(radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), -light->getSpotLightDistance(),
+                               radius * sin(PI / 4 + ((i + 1) % 4) * PI / 2), radius * cos(PI / 4 + ((i + 1) % 4) * PI / 2), -light->getSpotLightDistance());
+                }
                 ofPopMatrix();
                 ofPopMatrix();
                 ofPopStyle();
