@@ -50,6 +50,8 @@ void ofxPBRHelper::drawGui(ofCamera* cam)
 
 void ofxPBRHelper::drawGeneralGui(){
     if(ImGui::CollapsingHeader("General", 0, true, true)){
+
+		// save json button
         if (ImGui::Button("save")) {
             if (settings.isNull() == true && currentJsonIndex == -1) {
                 ImGui::OpenPopup("Save As ...");
@@ -58,6 +60,8 @@ void ofxPBRHelper::drawGeneralGui(){
             }
         }
         ImGui::SameLine();
+
+		// save new json button
         if (ImGui::Button("save as...")) {
             ImGui::OpenPopup("Save As ...");
         }
@@ -73,7 +77,8 @@ void ofxPBRHelper::drawGeneralGui(){
             if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
             ImGui::EndPopup();
         }
-        
+
+        // load json button
         if (Combo("load", &currentJsonIndex, jsonFiles)) {
             settings.openLocal(folderPath + "/" + jsonFiles[currentJsonIndex] + ".json");
             for (auto m : materials) {
@@ -87,17 +92,20 @@ void ofxPBRHelper::drawGeneralGui(){
             }
             setPBRFromJson();
         }
-        
+
+        // enable / disable cubemap
         if (ImGui::Checkbox("enable cubeMap", &pbrParams.enableCubeMap)) {
             pbr->enableCubeMap(pbrParams.enableCubeMap);
         }
-        
+
+        // select cubemap
         if (Combo("cubemap", &currentCubeMapIndex, cubeMapKeys)) {
             currentCubeMapKey = cubeMapKeys[currentCubeMapIndex];
             pbrParams.cubeMapName = cubeMapKeys[currentCubeMapIndex];
             pbr->setCubeMap(cubeMaps[currentCubeMapKey].first);
         }
-        
+
+        // select shadow map resolution
         const char* shadowRes[] = { "128", "256", "512", "1024", "2048", "4096" };
         if (ImGui::Combo("shadowMap Res", &shadowResIndex, shadowRes, 6)) {
             switch (shadowResIndex)
@@ -129,8 +137,11 @@ void ofxPBRHelper::drawGeneralGui(){
     }
 }
 
+// cubemap gui
 void ofxPBRHelper::drawCubeMapsGui(){
     if(ImGui::CollapsingHeader("Cube Map", 0, true, true)){
+
+		// loaded cubemap list
         ImGui::BeginChild("cubeMap list", ImVec2(150, 200), true);
         int cubeMapIndex = 0;
         for (auto elm : cubeMaps) {
@@ -146,15 +157,16 @@ void ofxPBRHelper::drawCubeMapsGui(){
         ImGui::EndChild();
         ImGui::SameLine();
         
-//        ImGui::SetNextWindowContentSize(ImVec2(200, 0));
         ImGui::PushItemWidth(200);
         ImGui::BeginGroup();
-//        ImGui::BeginChild("cubeMap params", ImVec2(0, 200));
         if (cubeMaps.find(selectedCubeMapKey) != cubeMaps.end()) {
+
+			// open panorama assets window
             if (ImGui::Button("set panorama")) {
                 showPanoramaWindow = !showPanoramaWindow;
             }
             
+			// load panorama
             if (panoramaLoaded) {
                 ofDisableArbTex();
                 ofxPBRImage img;
@@ -170,6 +182,7 @@ void ofxPBRHelper::drawCubeMapsGui(){
                 panoramaLoaded = false;
             }
             
+			// erase panorama
             if (panoramaErase) {
                 files->panoramas[erasePanoramaName]->clear();
                 files->panoramas[erasePanoramaName] = nullptr;
@@ -177,6 +190,7 @@ void ofxPBRHelper::drawCubeMapsGui(){
                 panoramaErase = false;
             }
             
+			// show current panorama
             if (cubeMaps[selectedCubeMapKey].first->isAllocated()) {
                 ImTextureID env = (ImTextureID)(uintptr_t)cubeMaps[selectedCubeMapKey].first->getPanoramaTexture()->getTextureData().textureID;
                 ImGui::Image(env, ImVec2(200, 100));
@@ -185,31 +199,36 @@ void ofxPBRHelper::drawCubeMapsGui(){
             ofxPBRCubeMap* cubeMap = cubeMaps[selectedCubeMapKey].first;
             CubeMapParams* params = cubeMaps[selectedCubeMapKey].second;
             
+			// change cubemap exposure
             if (ImGui::DragFloat("exposure", &params->exposure, 0.1)) {
                 params->exposure = fmaxf(params->exposure, 0.0);
                 cubeMap->setExposure(params->exposure);
             }
             
+			// change cubemap rotation
             if (ImGui::DragFloat("rotation", &params->rotation, 0.005, 0.0, 2 * PI)) {
                 cubeMap->setRotation(params->rotation);
             }
             
+			// change cubemap level
             if (ImGui::SliderFloat("env level", &params->envronmentLevel, 0.0, 1.0)) {
                 cubeMap->setEnvLevel(params->envronmentLevel);
             }
             
             drawPanoramasGui();
         }
-//        ImGui::EndChild();
         ImGui::EndGroup();
         ImGui::PopItemWidth();
     }
 }
 
+// panorama gui
 void ofxPBRHelper::drawPanoramasGui(){
     if (showPanoramaWindow) {
         ImGui::SetNextWindowSize(ofVec2f(600, 300), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("Panorama", &showPanoramaWindow);
+
+		// load panorama image  button
         if (ImGui::Button("load image")) {
             ofFileDialogResult openFileResult = ofSystemLoadDialog("Select a image");
             if (openFileResult.bSuccess) {
@@ -218,6 +237,8 @@ void ofxPBRHelper::drawPanoramasGui(){
             }
         }
         ImGui::SameLine();
+
+		// select cubemap's face resolution
         const char* res[] = { "128", "256", "512", "1024", "2048" };
         if (ImGui::Combo("resolution", &selectedCubeMapRes, res, 5)) {
             CubeMapParams* p = cubeMaps[selectedCubeMapKey].second;
@@ -242,6 +263,8 @@ void ofxPBRHelper::drawPanoramasGui(){
                     break;
             }
         }
+
+		// show all panorama assets
         int index = 0;
         int totalWidth = 0;
         for (auto p : files->panoramas) {
@@ -257,18 +280,24 @@ void ofxPBRHelper::drawPanoramasGui(){
             
             ImGui::BeginChild(index, ImVec2(200, 125), false);
             ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
+
+			// show panorama image & set cubemap button
             ImTextureID textureID = (ImTextureID)(uintptr_t)p.second->getTextureData().textureID;
             if (ImGui::ImageButton(textureID, ImVec2(200, 100), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
                 cubeMaps[selectedCubeMapKey].second->url = files->getPath() + "/panoramas/" + p.first;
                 cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second->resolution, true, files->getPath() + "/cubemapCache/");
                 showPanoramaWindow = false;
             }
+
+			// right click to popup details
             ImGui::PushID(index);
             if (ImGui::BeginPopupContextItem("detail"))
             {
+				// show filename
                 string s = p.first;
                 ImGui::Text(s.c_str());
                 
+				// delete panorama button
                 if (ImGui::Button("Delete")) {
                     ImGui::CloseCurrentPopup();
                     erasePanoramaName = p.first;
@@ -279,6 +308,8 @@ void ofxPBRHelper::drawPanoramasGui(){
                 ImGui::EndPopup();
             }
             ImGui::PopID();
+
+			// show filename
             string s = p.first;
             ImGui::Text(s.c_str());
             ImGui::EndChild();
@@ -312,7 +343,6 @@ void ofxPBRHelper::drawLightsGui(){
         
         ImGui::PushItemWidth(200);
         ImGui::BeginGroup();
-//        ImGui::BeginChild("light params", ImVec2(0, 400));
         if (lights.find(currentLightKey) != lights.end()) {
             ofxPBRLight* light = lights[currentLightKey].first;
             LightParams* lightParam = &lights[currentLightKey].second;
@@ -324,8 +354,8 @@ void ofxPBRHelper::drawLightsGui(){
             ImGui::SameLine();
             static bool enableGizmo = true;
             if (ImGui::Checkbox("enable Gizmo", &enableGizmo)) {
-//                light->enable(lightParam->enable);
-            }
+
+			}
             const char* lightType[] = { "directional", "spot", "point", "sky" };
             if (ImGui::Combo("light type", &lightParam->lightType, lightType, 4)) {
                 switch (lightParam->lightType) {
@@ -375,9 +405,9 @@ void ofxPBRHelper::drawLightsGui(){
                 
                 float matrixTranslation[3], matrixRotation[3], matrixScale[3];
                 ImGuizmo::DecomposeMatrixToComponents(mat.getPtr(), matrixTranslation, matrixRotation, matrixScale);
-                ImGui::DragFloat3("Tr", matrixTranslation);
-                ImGui::InputFloat3("Rt", matrixRotation);
-                ImGui::DragFloat2("Sc", matrixScale, 0.1);
+                ImGui::DragFloat3("translate", matrixTranslation);
+                ImGui::InputFloat3("rotate", matrixRotation);
+                ImGui::DragFloat2("scale", matrixScale, 0.1);
                 ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, mat.getPtr());
                 ImGuizmo::Manipulate(cam->getModelViewMatrix().getPtr(), cam->getProjectionMatrix().getPtr(), gizmoOperation, gizmoMode, mat.getPtr());
                 if(currentLightKey != ""){
@@ -484,17 +514,6 @@ void ofxPBRHelper::drawLightsGui(){
             }
             
             if (light->getShadowType() != ShadowType_None) {
-//                if (ImGui::DragFloat("nearClip", &lightParam->nearClip)) {
-//                    light->setNearClip(lightParam->nearClip);
-//                }
-                
-//                if (ImGui::DragFloat("farClip", &lightParam->farClip)) {
-//                    light->setFarClip(lightParam->farClip);
-//                }
-                
-//                if (ImGui::DragFloat("scale", &lightParam->scale, 0.1, 0.0, 100.0, "%.2f")) {
-//                    light->setScale(lightParam->scale, lightParam->scale, 1);
-//                }
                 
                 if (ImGui::DragFloat("shadowBias", &lightParam->shadowBias, 0.0001, 0.0, 1.0, "%.4f")) {
                     light->setShadowBias(lightParam->shadowBias);
@@ -516,7 +535,6 @@ void ofxPBRHelper::drawLightsGui(){
             }
         }
         
-//        ImGui::EndChild();
         ImGui::EndGroup();
         ImGui::PopItemWidth();
     }

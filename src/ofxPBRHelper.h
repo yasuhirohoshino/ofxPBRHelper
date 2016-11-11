@@ -53,13 +53,13 @@ private:
     
     // CubeMaps
 	map<string, pair<ofxPBRCubeMap*, CubeMapParams*>> cubeMaps;
+	ofFile currentPanoramaFile;
 	vector<string> cubeMapKeys;
 	string currentCubeMapKey;
 	string selectedCubeMapKey;
-	bool panoramaLoaded = false;
-	ofFile currentPanoramaFile;
-	bool panoramaErase = false;
 	string erasePanoramaName;
+	bool panoramaLoaded = false;
+	bool panoramaErase = false;
 	bool showPanoramaWindow = false;
 	int currentCubeMapIndex = -1;
 	int selectedCubeMap = 0;
@@ -72,16 +72,18 @@ private:
 
     // Materials
 	map<string, pair<ofxPBRMaterial*, MaterialParams*>> materials;
-	string currentMaterialKey;
-	bool textureLoaded = false;
 	ofFile currentFile;
-	bool texErase = false;
+	string currentMaterialKey;
 	string eraseTexName;
+	bool textureLoaded = false;
+	bool texErase = false;
 	bool showTextureWindow = false;
 	int currentId = 0;
 	int selectedMaterial = 0;
 
 	ImTextureID depthMapId;
+
+	// ImGui extention
 
 	bool Combo(const char* label, int* current_item, const std::vector<std::string>& items, int height_in_items = -1)
 	{
@@ -93,6 +95,8 @@ private:
 			items.size(), 
 			height_in_items);
 	};
+
+	// ImGuizmo
     
     ofMatrix4x4 mat;
     ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
