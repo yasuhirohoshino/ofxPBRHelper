@@ -321,10 +321,10 @@ void ofxPBRHelper::drawPanoramasGui(){
 
 void ofxPBRHelper::drawLightsGui(){
     if(ImGui::CollapsingHeader("Lights", 0, true, true)){
+
+		// select lights
         ImGui::BeginChild("light list", ImVec2(150, 600), true);
-        
         int lightIndex = 0;
-        
         for (auto elm : lights) {
             char label[128];
             string name = elm.first;
@@ -341,6 +341,7 @@ void ofxPBRHelper::drawLightsGui(){
         ImGui::EndChild();
         ImGui::SameLine();
         
+		// show light parameters
         ImGui::PushItemWidth(200);
         ImGui::BeginGroup();
         if (lights.find(currentLightKey) != lights.end()) {
@@ -348,14 +349,20 @@ void ofxPBRHelper::drawLightsGui(){
             LightParams* lightParam = &lights[currentLightKey].second;
             
             ImGui::Text(currentLightKey.c_str());
+
+			// set light enable / disable
             if (ImGui::Checkbox("enable", &lightParam->enable)) {
                 light->enable(lightParam->enable);
             }
             ImGui::SameLine();
+
+			// enable / disable ImGuizmo
             static bool enableGizmo = true;
             if (ImGui::Checkbox("enable Gizmo", &enableGizmo)) {
 
 			}
+
+			// select light type
             const char* lightType[] = { "directional", "spot", "point", "sky" };
             if (ImGui::Combo("light type", &lightParam->lightType, lightType, 4)) {
                 switch (lightParam->lightType) {
@@ -376,6 +383,7 @@ void ofxPBRHelper::drawLightsGui(){
                 }
             }
             
+			// light parameters
             if (light->getLightType() != LightType_Sky) {
                 
 //                if (ImGui::DragFloat3("position", &lightParam->pos[0])) {
@@ -387,6 +395,7 @@ void ofxPBRHelper::drawLightsGui(){
 //                    light->lookAt(lightParam->target);
 //                }
                 
+				// scale
                 if (gizmoOperation != ImGuizmo::SCALE)
                 {
                     if (ImGui::RadioButton("Local", gizmoMode == ImGuizmo::LOCAL))
@@ -414,14 +423,19 @@ void ofxPBRHelper::drawLightsGui(){
                     light->setTransformMatrix(mat);
                 }
                 
+				// set color
                 if (ImGui::ColorEdit3("color", &lightParam->color[0])) {
                     light->setColor(lightParam->color);
                 }
                 
             }
             else {
+
+			// sky light parameters
                 if (cubeMaps.find(currentCubeMapKey) != cubeMaps.end() && cubeMaps[currentCubeMapKey].first->isAllocated()) {
                     ofxPBRCubeMap* cubeMap = cubeMaps[currentCubeMapKey].first;
+
+					// set sky light position & color
                     ImDrawList* draw_list = ImGui::GetWindowDrawList();
                     ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
                     ImVec2 canvas_size = ImVec2(256, 128);
@@ -448,11 +462,13 @@ void ofxPBRHelper::drawLightsGui(){
                     draw_list->AddCircleFilled(circlePos, 5, ImColor(255, 255, 255));
                     draw_list->AddCircle(circlePos, 5, ImColor(0, 0, 0));
                     
+					// set sky light distance
                     if (ImGui::DragFloat("skyLightDistance", &lightParam->skyLightRadius, 1)) {
                         light->setSkyLightCoordinate(-PI / 2 + (lightParam->skyLightCoord.x / canvas_size.x) * 2 * PI, (lightParam->skyLightCoord.y / canvas_size.y) * PI, lightParam->skyLightRadius);
                         light->setFarClip(lightParam->skyLightRadius);
                     }
                     
+					// set scale
                     float matrixTranslation[3], matrixRotation[3], matrixScale[3];
                     ImGuizmo::DecomposeMatrixToComponents(mat.getPtr(), matrixTranslation, matrixRotation, matrixScale);
                     ImGui::DragFloat2("Sc", matrixScale, 0.1);
@@ -461,6 +477,7 @@ void ofxPBRHelper::drawLightsGui(){
                         light->setTransformMatrix(mat);
                     }
                     
+					// set color
                     if (ImGui::DragFloat3("color", &lightParam->color[0])) {
                         light->setColor(lightParam->color);
                     }
@@ -470,25 +487,34 @@ void ofxPBRHelper::drawLightsGui(){
                 }
             }
             
+			// set light intensity
             if (ImGui::DragFloat("intensity", &lightParam->intensity, 0.1, 0.0, 100.0)) {
                 light->setIntensity(lightParam->intensity);
             }
             
+			// set point light radius
             if (light->getLightType() == LightType_Point) {
                 if (ImGui::DragFloat("radius", &lightParam->radius)) {
                     light->setPointLightRadius(lightParam->radius);
                 }
             }
             
+			// set spot light parameters
             if (light->getLightType() == LightType_Spot) {
+
+				// set distance
                 if (ImGui::DragFloat("distance", &lightParam->radius)) {
                     light->setSpotLightDistance(lightParam->radius);
                     light->setFarClip(lightParam->radius);
                     light->setNearClip(lightParam->radius * 0.05);
                 }
+
+				// set spot light cutoff
                 if (ImGui::DragFloat("cutoff", &lightParam->cutoff, 0.1, 0.0, 90.0)) {
                     light->setSpotLightCutoff(lightParam->cutoff);
                 }
+
+				// set spot light gradient
                 if (ImGui::DragFloat("spotFactor", &lightParam->spotFactor, 0.1, 0.0, 10.0)) {
                     light->setSpotLightFactor(lightParam->spotFactor);
                 }
@@ -496,6 +522,7 @@ void ofxPBRHelper::drawLightsGui(){
             ImGui::Spacing();
             ImGui::Text("shadow");
             
+			// select shadow type
             const char* shadowType[] = { "none", "hard shadow", "soft shadow" };
             if (ImGui::Combo("shadow type", &lightParam->shadowType, shadowType, 3)) {
                 switch (lightParam->shadowType) {
@@ -515,10 +542,12 @@ void ofxPBRHelper::drawLightsGui(){
             
             if (light->getShadowType() != ShadowType_None) {
                 
+				// set shadow bias
                 if (ImGui::DragFloat("shadowBias", &lightParam->shadowBias, 0.0001, 0.0, 1.0, "%.4f")) {
                     light->setShadowBias(lightParam->shadowBias);
                 }
                 
+				// set shadow strength
                 static float shadowStrength = 1.0;
                 if (ImGui::DragFloat("shadowStrength", &shadowStrength, 1.0, 0.0, 1.0, "%.4f")) {
                     light->setShadowStrength(shadowStrength);
@@ -530,7 +559,8 @@ void ofxPBRHelper::drawLightsGui(){
                 //    light->setSoftShadowExponent(lightParam->softShadowExponent);
                 //}
             }
-            if (light->getShadowType() != ShadowType_None) {
+            if (light->getShadowType() != ShadowType_None && light->getLightType() != LightType_Sky) {
+				// show image
                 ImGui::Image(depthMapId, ImVec2(256, 256));
             }
         }
@@ -560,8 +590,8 @@ void ofxPBRHelper::drawMaterialsGui(){
         ImGui::SameLine();
         ImGui::PushItemWidth(200);
         ImGui::BeginGroup();
-//        ImGui::BeginChild("material params", ImVec2(0, 400));
-        if (materials.find(currentMaterialKey) != materials.end()) {
+
+		if (materials.find(currentMaterialKey) != materials.end()) {
             ofxPBRMaterial* material = materials[currentMaterialKey].first;
             MaterialParams* params = materials[currentMaterialKey].second;
             
@@ -829,8 +859,8 @@ void ofxPBRHelper::drawMaterialsGui(){
             ImGui::DragFloat2("", &material->detailTextureRepeat[0]);
             ImGui::PopID();
         }
-//        ImGui::EndChild();
-        ImGui::EndGroup();
+
+		ImGui::EndGroup();
         ImGui::PopItemWidth();
     }
     
@@ -983,6 +1013,8 @@ void ofxPBRHelper::drawLights(){
     for(auto l : lights){
         ofxPBRLight* light = l.second.first;
         float radius = 0.0;
+		ofPushStyle();
+		ofSetColor(255, 100);
         switch (light->getLightType()) {
             case LightType_Sky:
             case LightType_Directional:
@@ -1036,6 +1068,7 @@ void ofxPBRHelper::drawLights(){
             default:
                 break;
         }
+		ofPopStyle();
     }
 }
 
