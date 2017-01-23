@@ -333,7 +333,7 @@ void ofxPBRHelper::drawLightsGui(){
                 selectedLight = lightIndex;
                 currentLightKey = elm.first;
                 depthMapId = (ImTextureID)(uintptr_t)pbr->getDepthMap(lightIndex)->getTextureData().textureID;
-                mat = lights[currentLightKey].first->getGlobalTransformMatrix();
+                mat = lights[currentLightKey]->getGlobalTransformMatrix();
             }
             lightIndex++;
         }
@@ -345,8 +345,8 @@ void ofxPBRHelper::drawLightsGui(){
         ImGui::PushItemWidth(200);
         ImGui::BeginGroup();
         if (lights.find(currentLightKey) != lights.end()) {
-            ofxPBRLight* light = lights[currentLightKey].first;
-            LightParams* lightParam = &lights[currentLightKey].second;
+            ofxPBRLight* light = lights[currentLightKey];
+            ofxPBRLightParams* lightParam = &lights[currentLightKey]->getParameters();
             
             ImGui::Text(currentLightKey.c_str());
 
@@ -364,8 +364,9 @@ void ofxPBRHelper::drawLightsGui(){
 
 			// select light type
             const char* lightType[] = { "directional", "spot", "point", "sky" };
-            if (ImGui::Combo("light type", &lightParam->lightType, lightType, 4)) {
-                switch (lightParam->lightType) {
+			int type = static_cast<int>(lightParam->lightType);
+            if (ImGui::Combo("light type", &type, lightType, 4)) {
+                switch (type) {
                     case 0:
                         light->setLightType(LightType_Directional);
                         break;
@@ -385,15 +386,6 @@ void ofxPBRHelper::drawLightsGui(){
             
 			// light parameters
             if (light->getLightType() != LightType_Sky) {
-                
-//                if (ImGui::DragFloat3("position", &lightParam->pos[0])) {
-//                    light->setPosition(lightParam->pos);
-//                    light->lookAt(lightParam->target);
-//                }
-//                
-//                if (ImGui::DragFloat3("target", &lightParam->target[0])) {
-//                    light->lookAt(lightParam->target);
-//                }
                 
 				// scale
                 if (gizmoOperation != ImGuizmo::SCALE)
@@ -424,14 +416,15 @@ void ofxPBRHelper::drawLightsGui(){
                 }
                 
 				// set color
-                if (ImGui::ColorEdit3("color", &lightParam->color[0])) {
-                    light->setColor(lightParam->color);
+				ofFloatColor color = lightParam->color;
+                if (ImGui::ColorEdit3("color", &color[0])) {
+                    light->setColor(color);
                 }
                 
             }
             else {
 
-			// sky light parameters
+				// sky light parameters
                 if (cubeMaps.find(currentCubeMapKey) != cubeMaps.end() && cubeMaps[currentCubeMapKey].first->isAllocated()) {
                     ofxPBRCubeMap* cubeMap = cubeMaps[currentCubeMapKey].first;
 
@@ -448,39 +441,43 @@ void ofxPBRHelper::drawLightsGui(){
                         if (ImGui::IsMouseClicked(0) || ImGui::IsMouseDragging(0))
                         {
                             ImVec2 mouse_pos_in_canvas = ImVec2(ImGui::GetIO().MousePos.x - canvas_pos.x, ImGui::GetIO().MousePos.y - canvas_pos.y);
-                            lightParam->skyLightCoord = mouse_pos_in_canvas;
-                            ofFloatColor c = cubeMap->getColor(cubeMap->getPanoramaTexture()->getWidth() * (lightParam->skyLightCoord.x / canvas_size.x), cubeMap->getPanoramaTexture()->getHeight() * (lightParam->skyLightCoord.y / canvas_size.y));
+                            ofFloatColor c = cubeMap->getColor(cubeMap->getPanoramaTexture()->getWidth() * (mouse_pos_in_canvas.x / canvas_size.x), cubeMap->getPanoramaTexture()->getHeight() * (mouse_pos_in_canvas.y / canvas_size.y));
                             lightParam->color = c;
                             light->setColor(c);
-                            light->setSkyLightCoordinate(-PI / 2 + (lightParam->skyLightCoord.x / canvas_size.x) * 2 * PI, (lightParam->skyLightCoord.y / canvas_size.y) * PI, lightParam->skyLightRadius);
-                            lightParam->pos = light->getPosition();
-                            light->lookAt(ofVec3f(0, 0, 0));
+                            light->setSkyLightCoordinate(
+								-PI / 2 + (mouse_pos_in_canvas.x / canvas_size.x) * 2 * PI, 
+								(mouse_pos_in_canvas.y / canvas_size.y) * PI, 
+								light->getSkyLightDistance());
+                            //lightParam->pos = light->getPosition();
                         }
                     }
                     
-                    ImVec2 circlePos = ImVec2(lightParam->skyLightCoord.x + canvas_pos.x, lightParam->skyLightCoord.y + canvas_pos.y);
+                    ImVec2 circlePos = ImVec2(((PI / 2 + light->getSkyLightLongitude()) / TWO_PI) * canvas_size.x + canvas_pos.x, 
+						light->getSkyLightLatitude() / PI * canvas_size.y + canvas_pos.y);
                     draw_list->AddCircleFilled(circlePos, 5, ImColor(255, 255, 255));
                     draw_list->AddCircle(circlePos, 5, ImColor(0, 0, 0));
                     
 					// set sky light distance
-                    if (ImGui::DragFloat("skyLightDistance", &lightParam->skyLightRadius, 1)) {
-                        light->setSkyLightCoordinate(-PI / 2 + (lightParam->skyLightCoord.x / canvas_size.x) * 2 * PI, (lightParam->skyLightCoord.y / canvas_size.y) * PI, lightParam->skyLightRadius);
-                        light->setFarClip(lightParam->skyLightRadius);
+					float distance = light->getSkyLightDistance();
+                    if (ImGui::DragFloat("skyLightDistance", &distance, 1)) {
+                        light->setSkyLightDistance(distance);
+                        light->setFarClip(light->getSkyLightDistance() * 2);
                     }
                     
 					// set scale
                     float matrixTranslation[3], matrixRotation[3], matrixScale[3];
                     ImGuizmo::DecomposeMatrixToComponents(mat.getPtr(), matrixTranslation, matrixRotation, matrixScale);
-                    ImGui::DragFloat2("Sc", matrixScale, 0.1);
+                    ImGui::DragFloat2("scale", matrixScale, 0.1);
                     ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, mat.getPtr());
                     if(currentLightKey != ""){
                         light->setTransformMatrix(mat);
                     }
                     
 					// set color
-                    if (ImGui::DragFloat3("color", &lightParam->color[0])) {
-                        light->setColor(lightParam->color);
-                    }
+					ofFloatColor color = lightParam->color;
+					if (ImGui::DragFloat3("color", &color[0], 0.01)) {
+						light->setColor(color);
+					}
                     
                 }else{
                     ImGui::Text("cubeMap texture is not loaded.");
@@ -488,44 +485,50 @@ void ofxPBRHelper::drawLightsGui(){
             }
             
 			// set light intensity
-            if (ImGui::DragFloat("intensity", &lightParam->intensity, 0.1, 0.0, 100.0)) {
-                light->setIntensity(lightParam->intensity);
+			float intensity = lightParam->intensity;
+            if (ImGui::DragFloat("intensity", &intensity, 0.1, 0.0, 100.0)) {
+                light->setIntensity(intensity);
             }
             
 			// set point light radius
             if (light->getLightType() == LightType_Point) {
-                if (ImGui::DragFloat("radius", &lightParam->radius)) {
-                    light->setPointLightRadius(lightParam->radius);
+				float radius = lightParam->pointLight.radius;
+                if (ImGui::DragFloat("radius", &radius)) {
+                    light->setPointLightRadius(radius);
                 }
             }
-            
+
 			// set spot light parameters
             if (light->getLightType() == LightType_Spot) {
-
+				float distance = lightParam->spotLight.distance;
 				// set distance
-                if (ImGui::DragFloat("distance", &lightParam->radius)) {
-                    light->setSpotLightDistance(lightParam->radius);
-                    light->setFarClip(lightParam->radius);
-                    light->setNearClip(lightParam->radius * 0.05);
+                if (ImGui::DragFloat("distance", &distance)) {
+                    light->setSpotLightDistance(distance);
+                    light->setFarClip(distance);
+                    light->setNearClip(distance * 0.05);
                 }
 
 				// set spot light cutoff
-                if (ImGui::DragFloat("cutoff", &lightParam->cutoff, 0.1, 0.0, 90.0)) {
-                    light->setSpotLightCutoff(lightParam->cutoff);
+				float cutoff = lightParam->spotLight.cutoff;
+                if (ImGui::DragFloat("cutoff", &cutoff, 0.1, 0.0, 90.0)) {
+                    light->setSpotLightCutoff(cutoff);
                 }
 
 				// set spot light gradient
-                if (ImGui::DragFloat("spotFactor", &lightParam->spotFactor, 0.1, 0.0, 10.0)) {
-                    light->setSpotLightFactor(lightParam->spotFactor);
+				float gradient = lightParam->spotLight.spotFactor;
+                if (ImGui::DragFloat("spotFactor", &gradient, 0.1, 0.0, 10.0)) {
+                    light->setSpotLightFactor(gradient);
                 }
             }
             ImGui::Spacing();
+
             ImGui::Text("shadow");
             
 			// select shadow type
             const char* shadowType[] = { "none", "hard shadow", "soft shadow" };
-            if (ImGui::Combo("shadow type", &lightParam->shadowType, shadowType, 3)) {
-                switch (lightParam->shadowType) {
+			int shadow = static_cast<int>(lightParam->shadowType);
+            if (ImGui::Combo("shadow type", &shadow, shadowType, 3)) {
+                switch (shadow) {
                     case 0:
                         light->setShadowType(ShadowType_None);
                         break;
@@ -543,13 +546,14 @@ void ofxPBRHelper::drawLightsGui(){
             if (light->getShadowType() != ShadowType_None) {
                 
 				// set shadow bias
-                if (ImGui::DragFloat("shadowBias", &lightParam->shadowBias, 0.0001, 0.0, 1.0, "%.4f")) {
-                    light->setShadowBias(lightParam->shadowBias);
+				float shadowBias = lightParam->shadowBias;
+                if (ImGui::DragFloat("shadowBias", &shadowBias, 0.0001, 0.0, 1.0, "%.4f")) {
+                    light->setShadowBias(shadowBias);
                 }
                 
 				// set shadow strength
-                static float shadowStrength = 1.0;
-                if (ImGui::DragFloat("shadowStrength", &shadowStrength, 1.0, 0.0, 1.0, "%.4f")) {
+                float shadowStrength = lightParam->shadowStrength;
+                if (ImGui::DragFloat("shadowStrength", &shadowStrength, 0.01, 0.000, 1.000, "%.2f")) {
                     light->setShadowStrength(shadowStrength);
                 }
             }
@@ -559,7 +563,7 @@ void ofxPBRHelper::drawLightsGui(){
                 //    light->setSoftShadowExponent(lightParam->softShadowExponent);
                 //}
             }
-            if (light->getShadowType() != ShadowType_None && light->getLightType() != LightType_Sky) {
+            if (light->getShadowType() != ShadowType_None && light->getLightType() != LightType_Point) {
 				// show image
                 ImGui::Image(depthMapId, ImVec2(256, 256));
             }
@@ -1011,7 +1015,7 @@ void ofxPBRHelper::drawTexturesGui(){
 
 void ofxPBRHelper::drawLights(){
     for(auto l : lights){
-        ofxPBRLight* light = l.second.first;
+        ofxPBRLight* light = l.second;
         float radius = 0.0;
 		ofPushStyle();
 		ofSetColor(255, 100);
@@ -1074,7 +1078,7 @@ void ofxPBRHelper::drawLights(){
 
 void ofxPBRHelper::addLight(ofxPBRLight * light, string name)
 {
-    lights.insert(map<string, pair<ofxPBRLight*, LightParams>>::value_type(name, pair<ofxPBRLight*, LightParams>(light, LightParams())));
+    lights.insert(map<string, ofxPBRLight*>::value_type(name, light));
     pbr->addLight(light);
     setLightsFromJson(name);
     mat = light->getGlobalTransformMatrix();
@@ -1191,41 +1195,51 @@ void ofxPBRHelper::saveJson(string fileName)
 
 	Json::Value lightJson;
 	for (auto light : lights) {
-		ofxPBRLight* l = light.second.first;
-		LightParams* p = &light.second.second;
+		ofxPBRLight* l = light.second;
+		ofxPBRLightParams* p = &l->getParameters();
+		Json::Value json;
 
-		lightJson[light.first]["enable"] = p->enable;
+		json["enable"] = p->enable;
+		json["lightId"] = p->lightId;
+		json["lightType"] = p->lightType;
+		json["intensity"] = p->intensity;
 
-		lightJson[light.first]["lightType"] = p->lightType;
+		for (int i = 0; i < 4; i++) {
+			json["matrix"][0 + i * 4] = l->getGlobalTransformMatrix().getRowAsVec4f(i).x;
+			json["matrix"][1 + i * 4] = l->getGlobalTransformMatrix().getRowAsVec4f(i).y;
+			json["matrix"][2 + i * 4] = l->getGlobalTransformMatrix().getRowAsVec4f(i).z;
+			json["matrix"][3 + i * 4] = l->getGlobalTransformMatrix().getRowAsVec4f(i).w;
+		}
 
-		lightJson[light.first]["position"]["x"] = p->pos.x;
-		lightJson[light.first]["position"]["y"] = p->pos.y;
-		lightJson[light.first]["position"]["z"] = p->pos.z;
+		json["color"][0] = p->color.r;
+		json["color"][1] = p->color.g;
+		json["color"][2] = p->color.b;
 
-		lightJson[light.first]["target"]["x"] = p->target.x;
-		lightJson[light.first]["target"]["y"] = p->target.y;
-		lightJson[light.first]["target"]["z"] = p->target.z;
+		json["shadowType"] = p->shadowType;
+		json["shadowIndex"] = p->shadowIndex;
+		json["shadowBias"] = p->shadowBias;
+		json["shadowStrength"] = p->shadowStrength;
 
-		lightJson[light.first]["skyLightCoord"]["x"] = p->skyLightCoord.x;
-		lightJson[light.first]["skyLightCoord"]["y"] = p->skyLightCoord.y;
+		Json::Value spot;
+		spot["spotFactor"] = p->spotLight.spotFactor;
+		spot["cutoff"] = p->spotLight.cutoff;
+		spot["distance"] = p->spotLight.distance;
+		json["spotLight"] = spot;
 
-		lightJson[light.first]["color"]["r"] = p->color.r;
-		lightJson[light.first]["color"]["g"] = p->color.g;
-		lightJson[light.first]["color"]["b"] = p->color.b;
-		lightJson[light.first]["color"]["a"] = p->color.a;
+		Json::Value point;
+		point["radius"] = p->pointLight.radius;
+		point["index"] = p->pointLight.index;
+		json["pointLight"] = point;
 
-		lightJson[light.first]["intensity"] = p->intensity;
+		Json::Value sky;
+		sky["latitude"] = p->skyLight.latitude;
+		sky["longitude"] = p->skyLight.longitude;
+		sky["distance"] = p->skyLight.distance;
+		sky["exposure"] = p->skyLight.exposure;
+		sky["angle"] = p->skyLight.angle;
+		json["skyLight"] = sky;
 
-		lightJson[light.first]["radius"] = p->radius;
-		lightJson[light.first]["cutoff"] = p->cutoff;
-		lightJson[light.first]["spotFactor"] = p->spotFactor;
-
-		lightJson[light.first]["shadowType"] = p->shadowType;
-		lightJson[light.first]["nearClip"] = p->nearClip;
-		lightJson[light.first]["farClip"] = p->farClip;
-		lightJson[light.first]["scale"] = p->scale;
-		lightJson[light.first]["shadowBias"] = p->shadowBias;
-		lightJson[light.first]["softShadowExponent"] = p->softShadowExponent;
+		lightJson[light.first] = json;
 	}
 	settings["light"] = lightJson;
 
@@ -1316,92 +1330,49 @@ void ofxPBRHelper::setMaterialsFromJson(string materialName)
 void ofxPBRHelper::setLightsFromJson(string lightName)
 {
 	if (lights.find(lightName) != lights.end()) {
-		ofxPBRLight* light = lights[lightName].first;
-		LightParams* params = &lights[lightName].second;
+		ofxPBRLight* light = lights[lightName];
+
 		if (settings.isNull() == false && settings["light"][lightName].isNull() == false) {
-			Json::Value lightParams = settings["light"][lightName];
+			Json::Value p = settings["light"][lightName];
+			ofxPBRLightParams params;
+			params.enable = p["enable"].asBool();
+			params.lightId = p["lightId"].asInt();
+			params.intensity = p["intensity"].asFloat();
+			params.lightType = static_cast<LightType>(p["lightType"].asInt());
 
-			params->enable = lightParams["enable"].asBool();
+			params.color.r = p["color"][0].asFloat();
+			params.color.g = p["color"][1].asFloat();
+			params.color.b = p["color"][2].asFloat();
 
-			params->lightType = lightParams["lightType"].asInt();
+			float matValue[16];;
+			for (int i = 0; i < 16; i++) {
+				matValue[i] = p["matrix"][i].asFloat();
+			}
+			ofMatrix4x4 transformMat;
+			transformMat.set(&matValue[0]);
+			light->setTransformMatrix(transformMat);
+			cout << light->getPosition() << endl;
 
-			params->pos.x = lightParams["position"]["x"].asFloat();
-			params->pos.y = lightParams["position"]["y"].asFloat();
-			params->pos.z = lightParams["position"]["z"].asFloat();
+			params.shadowType = static_cast<ShadowType>(p["shadowType"].asInt());
+			params.shadowIndex = p["shadowIndex"].asInt();
+			params.shadowBias = p["shadowBias"].asFloat();
+			params.shadowStrength = p["shadowStrength"].asFloat();
 
-			params->target.x = lightParams["target"]["x"].asFloat();
-			params->target.y = lightParams["target"]["y"].asFloat();
-			params->target.z = lightParams["target"]["z"].asFloat();
+			params.spotLight.spotFactor = p["spotLight"]["spotFactor"].asFloat();
+			params.spotLight.cutoff = p["spotLight"]["cutoff"].asFloat();
+			params.spotLight.distance = p["spotLight"]["distance"].asFloat();
 
-			params->skyLightCoord.x = lightParams["skyLightCoord"]["x"].asFloat();
-			params->skyLightCoord.y = lightParams["skyLightCoord"]["y"].asFloat();
+			params.pointLight.radius = p["pointLight"]["radius"].asFloat();
+			params.pointLight.index = p["pointLight"]["index"].asInt();
 
-			params->color.r = lightParams["color"]["r"].asFloat();
-			params->color.g = lightParams["color"]["g"].asFloat();
-			params->color.b = lightParams["color"]["b"].asFloat();
-			params->color.a = lightParams["color"]["a"].asFloat();
+			params.skyLight.latitude = p["skyLight"]["latitude"].asFloat();
+			params.skyLight.longitude = p["skyLight"]["longitude"].asFloat();
+			params.skyLight.distance = p["skyLight"]["distance"].asFloat();
+			params.skyLight.exposure = p["skyLight"]["exposure"].asFloat();
+			params.skyLight.angle = p["skyLight"]["angle"].asFloat();
 
-			params->intensity = lightParams["intensity"].asFloat();
-
-			params->radius = lightParams["radius"].asFloat();
-			params->cutoff = lightParams["cutoff"].asFloat();
-			params->spotFactor = lightParams["spotFactor"].asFloat();
-
-			params->shadowType = lightParams["shadowType"].asInt();
-			params->nearClip = lightParams["nearClip"].asFloat();
-			params->farClip = lightParams["farClip"].asFloat();
-			params->scale = lightParams["scale"].asFloat();
-			params->shadowBias = lightParams["shadowBias"].asFloat();
-			params->softShadowExponent = lightParams["softShadowExponent"].asFloat();
+			light->setParameters(params);
 		}
-
-		light->enable(params->enable);
-		light->setPosition(params->pos);
-		light->lookAt(params->target);
-
-		switch (params->lightType) {
-		case 0:
-			light->setLightType(LightType_Directional);
-			break;
-		case 1:
-			light->setLightType(LightType_Spot);
-			break;
-		case 2:
-			light->setLightType(LightType_Point);
-			break;
-		case 3:
-			light->setLightType(LightType_Sky);
-			light->setSkyLightCoordinate(-PI / 2 + (params->skyLightCoord.x / 256) * 2 * PI, (params->skyLightCoord.y / 128) * PI, 4000);
-			break;
-		default:
-			break;
-		}
-
-		light->setColor(params->color);
-		light->setIntensity(params->intensity);
-		light->setPointLightRadius(params->radius);
-		light->setSpotLightCutoff(params->cutoff);
-		light->setSpotLightFactor(params->spotFactor);
-
-		switch (params->shadowType) {
-		case 0:
-			light->setShadowType(ShadowType_None);
-			break;
-		case 1:
-			light->setShadowType(ShadowType_Hard);
-			break;
-		case 2:
-			light->setShadowType(ShadowType_Soft);
-			break;
-		default:
-			break;
-		}
-
-		light->setNearClip(params->nearClip);
-		light->setFarClip(params->farClip);
-		light->setScale(params->scale);
-		light->setShadowBias(params->shadowBias);
-		//light->setSoftShadowExponent(params->softShadowExponent);
 	}
 }
 

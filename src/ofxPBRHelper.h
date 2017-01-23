@@ -66,7 +66,7 @@ private:
 	int selectedCubeMapRes = 2;
     
     // Lights
-	map<string, pair<ofxPBRLight*, LightParams>> lights;
+	map<string, ofxPBRLight*> lights;
 	string currentLightKey;
 	int selectedLight = 0;
 
