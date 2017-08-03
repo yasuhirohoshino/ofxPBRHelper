@@ -1,5 +1,10 @@
 #include "ofxPBRHelper.h"
 
+ofxPBRHelper::~ofxPBRHelper()
+{
+	gui.close();
+}
+
 void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool enableOtherGui)
 {
     this->enableOtherGui = enableOtherGui;
@@ -17,8 +22,9 @@ void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool enableOtherGui)
 		settings.openLocal(folderPath + "/" + jsonFiles[0] + ".json");
 		currentJsonIndex = 0;
 		setPBRFromJson();
-    }else{
-        currentJsonIndex = -1;
+	}
+	else {
+		currentJsonIndex = -1;
     }
 	textureLoaded = false;
     
@@ -105,35 +111,12 @@ void ofxPBRHelper::drawGeneralGui(){
             pbr->setCubeMap(cubeMaps[currentCubeMapKey].first);
         }
 
-        // select shadow map resolution
-        const char* shadowRes[] = { "128", "256", "512", "1024", "2048", "4096" };
-        if (ImGui::Combo("shadowMap Res", &shadowResIndex, shadowRes, 6)) {
-            switch (shadowResIndex)
-            {
-                case 0:
-                    pbrParams.shadowMapRes = 128;
-                    break;
-                case 1:
-                    pbrParams.shadowMapRes = 256;
-                    break;
-                case 2:
-                    pbrParams.shadowMapRes = 512;
-                    break;
-                case 3:
-                    pbrParams.shadowMapRes = 1024;
-                    break;
-                case 4:
-                    pbrParams.shadowMapRes = 2048;
-                    break;
-                case 5:
-                    pbrParams.shadowMapRes = 4096;
-                    break;
-                    
-                default:
-                    break;
-            }
-            pbr->resizeDepthMap(pbrParams.shadowMapRes);
-        }
+        //// select shadow map resolution
+
+		ImGui::InputInt("shadowMap res", &pbrParams.shadowMapRes);
+		if (ImGui::Button("apply shadowMap res")) {
+			pbr->resizeDepthMap(pbrParams.shadowMapRes);
+		}
     }
 }
 
@@ -288,6 +271,16 @@ void ofxPBRHelper::drawPanoramasGui(){
                 cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second->resolution, true, files->getPath() + "/cubemapCache/");
                 showPanoramaWindow = false;
             }
+			ImGui::PushID(index);
+			// delete panorama button
+			if (ImGui::Button("Delete")) {
+				ImGui::CloseCurrentPopup();
+				erasePanoramaName = p.first;
+				panoramaErase = true;
+				ofFile::removeFile(files->getPath() + "/panoramas/" + erasePanoramaName);
+				ofFile::removeFile(files->getPath() + "/panoramas_small/" + erasePanoramaName);
+			}
+			ImGui::PopID();
 
 			// right click to popup details
             ImGui::PushID(index);
@@ -346,13 +339,13 @@ void ofxPBRHelper::drawLightsGui(){
         ImGui::BeginGroup();
         if (lights.find(currentLightKey) != lights.end()) {
             ofxPBRLight* light = lights[currentLightKey];
-            ofxPBRLightParams* lightParam = &lights[currentLightKey]->getParameters();
+            ofxPBRLightData* lightParam = &lights[currentLightKey]->getParameters();
             
             ImGui::Text(currentLightKey.c_str());
 
 			// set light enable / disable
             if (ImGui::Checkbox("enable", &lightParam->enable)) {
-                light->enable(lightParam->enable);
+                light->setEnable(lightParam->enable);
             }
             ImGui::SameLine();
 
@@ -444,10 +437,9 @@ void ofxPBRHelper::drawLightsGui(){
                             ofFloatColor c = cubeMap->getColor(cubeMap->getPanoramaTexture()->getWidth() * (mouse_pos_in_canvas.x / canvas_size.x), cubeMap->getPanoramaTexture()->getHeight() * (mouse_pos_in_canvas.y / canvas_size.y));
                             lightParam->color = c;
                             light->setColor(c);
-                            light->setSkyLightCoordinate(
-								-PI / 2 + (mouse_pos_in_canvas.x / canvas_size.x) * 2 * PI, 
-								(mouse_pos_in_canvas.y / canvas_size.y) * PI, 
-								light->getSkyLightDistance());
+							light->setSkyLightCoordinate(
+								-PI / 2 + (mouse_pos_in_canvas.x / canvas_size.x) * 2 * PI,
+								(mouse_pos_in_canvas.y / canvas_size.y) * PI);
                             //lightParam->pos = light->getPosition();
                         }
                     }
@@ -456,13 +448,6 @@ void ofxPBRHelper::drawLightsGui(){
 						light->getSkyLightLatitude() / PI * canvas_size.y + canvas_pos.y);
                     draw_list->AddCircleFilled(circlePos, 5, ImColor(255, 255, 255));
                     draw_list->AddCircle(circlePos, 5, ImColor(0, 0, 0));
-                    
-					// set sky light distance
-					float distance = light->getSkyLightDistance();
-                    if (ImGui::DragFloat("skyLightDistance", &distance, 1)) {
-                        light->setSkyLightDistance(distance);
-                        light->setFarClip(light->getSkyLightDistance() * 2);
-                    }
                     
 					// set scale
                     float matrixTranslation[3], matrixRotation[3], matrixScale[3];
@@ -492,7 +477,7 @@ void ofxPBRHelper::drawLightsGui(){
             
 			// set point light radius
             if (light->getLightType() == LightType_Point) {
-				float radius = lightParam->pointLight.radius;
+				float radius = lightParam->pointLightRadius;
                 if (ImGui::DragFloat("radius", &radius)) {
                     light->setPointLightRadius(radius);
                 }
@@ -500,24 +485,22 @@ void ofxPBRHelper::drawLightsGui(){
 
 			// set spot light parameters
             if (light->getLightType() == LightType_Spot) {
-				float distance = lightParam->spotLight.distance;
+				float distance = lightParam->spotLightDistance;
 				// set distance
                 if (ImGui::DragFloat("distance", &distance)) {
                     light->setSpotLightDistance(distance);
-                    light->setFarClip(distance);
-                    light->setNearClip(distance * 0.05);
                 }
 
 				// set spot light cutoff
-				float cutoff = lightParam->spotLight.cutoff;
+				float cutoff = lightParam->spotLightCutoff;
                 if (ImGui::DragFloat("cutoff", &cutoff, 0.1, 0.0, 90.0)) {
                     light->setSpotLightCutoff(cutoff);
                 }
 
 				// set spot light gradient
-				float gradient = lightParam->spotLight.spotFactor;
+				float gradient = lightParam->spotLightGradient;
                 if (ImGui::DragFloat("spotFactor", &gradient, 0.1, 0.0, 10.0)) {
-                    light->setSpotLightFactor(gradient);
+                    light->setSpotLightGradient(gradient);
                 }
             }
             ImGui::Spacing();
@@ -983,6 +966,18 @@ void ofxPBRHelper::drawTexturesGui(){
                     showTextureWindow = false;
                 }
                 ImGui::PushID(index);
+				string size = ofToString(t.second->getWidth()) + " x " + ofToString(t.second->getHeight());
+				ImGui::Text(size.c_str());
+
+				string s = t.first;
+				ImGui::Text(s.c_str());
+
+				if (ImGui::Button("Delete")) {
+					ImGui::CloseCurrentPopup();
+					eraseTexName = t.first;
+					texErase = true;
+					ofFile::removeFile(files->getPath() + "/textures/" + eraseTexName);
+				}
                 if (ImGui::BeginPopupContextItem("detail"))
                 {
                     string s = t.first;
@@ -1000,9 +995,6 @@ void ofxPBRHelper::drawTexturesGui(){
                     ImGui::EndPopup();
                 }
                 ImGui::PopID();
-                
-                string s = t.first;
-                ImGui::Text(s.c_str());
                 
                 ImGui::EndChild();
                 index++;
@@ -1080,6 +1072,7 @@ void ofxPBRHelper::addLight(ofxPBRLight * light, string name)
 {
     lights.insert(map<string, ofxPBRLight*>::value_type(name, light));
     pbr->addLight(light);
+	light->setup();
     setLightsFromJson(name);
     mat = light->getGlobalTransformMatrix();
 }
@@ -1196,11 +1189,10 @@ void ofxPBRHelper::saveJson(string fileName)
 	Json::Value lightJson;
 	for (auto light : lights) {
 		ofxPBRLight* l = light.second;
-		ofxPBRLightParams* p = &l->getParameters();
+		ofxPBRLightData* p = &l->getParameters();
 		Json::Value json;
 
 		json["enable"] = p->enable;
-		json["lightId"] = p->lightId;
 		json["lightType"] = p->lightType;
 		json["intensity"] = p->intensity;
 
@@ -1216,28 +1208,15 @@ void ofxPBRHelper::saveJson(string fileName)
 		json["color"][2] = p->color.b;
 
 		json["shadowType"] = p->shadowType;
-		json["shadowIndex"] = p->shadowIndex;
 		json["shadowBias"] = p->shadowBias;
 		json["shadowStrength"] = p->shadowStrength;
 
-		Json::Value spot;
-		spot["spotFactor"] = p->spotLight.spotFactor;
-		spot["cutoff"] = p->spotLight.cutoff;
-		spot["distance"] = p->spotLight.distance;
-		json["spotLight"] = spot;
+		json["spotLightGradient"] = p->spotLightGradient;
+		json["spotLightCutoff"] = p->spotLightCutoff;
 
-		Json::Value point;
-		point["radius"] = p->pointLight.radius;
-		point["index"] = p->pointLight.index;
-		json["pointLight"] = point;
-
-		Json::Value sky;
-		sky["latitude"] = p->skyLight.latitude;
-		sky["longitude"] = p->skyLight.longitude;
-		sky["distance"] = p->skyLight.distance;
-		sky["exposure"] = p->skyLight.exposure;
-		sky["angle"] = p->skyLight.angle;
-		json["skyLight"] = sky;
+		json["skyLightLatitude"] = p->skyLightLatitude;
+		json["skyLightLongitude"] = p->skyLightLongitude;
+		json["skyLightAngle"] = p->skyLightAngle;
 
 		lightJson[light.first] = json;
 	}
@@ -1334,9 +1313,8 @@ void ofxPBRHelper::setLightsFromJson(string lightName)
 
 		if (settings.isNull() == false && settings["light"][lightName].isNull() == false) {
 			Json::Value p = settings["light"][lightName];
-			ofxPBRLightParams params;
+			ofxPBRLightData params;
 			params.enable = p["enable"].asBool();
-			params.lightId = p["lightId"].asInt();
 			params.intensity = p["intensity"].asFloat();
 			params.lightType = static_cast<LightType>(p["lightType"].asInt());
 
@@ -1351,25 +1329,17 @@ void ofxPBRHelper::setLightsFromJson(string lightName)
 			ofMatrix4x4 transformMat;
 			transformMat.set(&matValue[0]);
 			light->setTransformMatrix(transformMat);
-			cout << light->getPosition() << endl;
 
 			params.shadowType = static_cast<ShadowType>(p["shadowType"].asInt());
-			params.shadowIndex = p["shadowIndex"].asInt();
 			params.shadowBias = p["shadowBias"].asFloat();
 			params.shadowStrength = p["shadowStrength"].asFloat();
 
-			params.spotLight.spotFactor = p["spotLight"]["spotFactor"].asFloat();
-			params.spotLight.cutoff = p["spotLight"]["cutoff"].asFloat();
-			params.spotLight.distance = p["spotLight"]["distance"].asFloat();
+			params.spotLightGradient = p["spotLightGradient"].asFloat();
+			params.spotLightCutoff = p["spotLightCutoff"].asFloat();
 
-			params.pointLight.radius = p["pointLight"]["radius"].asFloat();
-			params.pointLight.index = p["pointLight"]["index"].asInt();
-
-			params.skyLight.latitude = p["skyLight"]["latitude"].asFloat();
-			params.skyLight.longitude = p["skyLight"]["longitude"].asFloat();
-			params.skyLight.distance = p["skyLight"]["distance"].asFloat();
-			params.skyLight.exposure = p["skyLight"]["exposure"].asFloat();
-			params.skyLight.angle = p["skyLight"]["angle"].asFloat();
+			params.skyLightLatitude = p["skyLightLatitude"].asFloat();
+			params.skyLightLongitude = p["skyLightLongitude"].asFloat();
+			params.skyLightAngle = p["skyLightAngle"].asFloat();
 
 			light->setParameters(params);
 		}
@@ -1419,6 +1389,7 @@ void ofxPBRHelper::setPBRFromJson()
 		pbrParams.shadowMapRes = p["shadowMapRes"].asInt();
 		pbrParams.enableEnvironment = p["enableEnvironment"].asBool();
 	}
+
     pbr->enableCubeMap(pbrParams.enableCubeMap);
 	pbr->resizeDepthMap(pbrParams.shadowMapRes);
 }

@@ -38,10 +38,25 @@ void ofxPBRFiles::setup(string folderPath)
 	}
 }
 
+void ofxPBRFiles::close()
+{
+	for (auto &t : textures) {
+		t.second->clear();
+		delete t.second;
+	}
+
+	for (auto &p : panoramas) {
+		p.second->clear();
+		delete p.second;
+	}
+}
+
 string ofxPBRFiles::getPath()
 {
 	return folderPath;
 }
+
+
 
 ofxPBRFiles::ofxPBRFiles(){}
 ofxPBRFiles::~ofxPBRFiles(){}

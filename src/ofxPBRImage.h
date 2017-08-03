@@ -6,7 +6,7 @@ public:
 		ofFile file;
 		file.open(path);
 
-		if (file.getExtension() == "hdr" || file.getExtension() == "exr" || file.getExtension() == "dds" || file.getExtension() == "tga") {
+		if (file.getExtension() == "hdr" || file.getExtension() == "exr" || file.getExtension() == "dds" || file.getExtension() == "tga" || file.getExtension() == "tif" || file.getExtension() == "png") {
 			fImg.load(file.getAbsolutePath());
 			isFloat = true;
 		}
@@ -16,7 +16,7 @@ public:
 		}
 	}
 
-	void fetchPixels(ofPixels* pixel) {
+	void fetchPixels(ofShortPixels* pixel) {
 		pixel = &img.getPixels();
 	}
 
@@ -51,7 +51,7 @@ public:
 		return &fImg;
 	}
 
-	ofImage* getImage() {
+	ofShortImage* getImage() {
 		return &img;
 	}
 
@@ -101,7 +101,7 @@ public:
 	}
 
 	ofFloatImage fImg;
-	ofImage img;
+	ofShortImage img;
 
 private:
 	bool isFloat = false;

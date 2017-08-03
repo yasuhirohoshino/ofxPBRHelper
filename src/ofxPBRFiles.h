@@ -7,6 +7,7 @@ public:
 	static ofxPBRFiles * getInstance();
 
 	void setup(string folderPath);
+	void close();
 
 	map<string, ofTexture*> textures;
 	map<string, ofTexture*> panoramas;

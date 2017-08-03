@@ -10,6 +10,7 @@
 
 class ofxPBRHelper {
 public:
+	~ofxPBRHelper();
 	void setup(ofxPBR* pbr, string folderPath, bool enableOtherGui = false);
 	void drawGui(ofCamera* cam);
     void drawLights();
@@ -37,7 +38,7 @@ private:
 	void setCubeMapsFromJson(string cubeMapName);
 	void setPBRFromJson();
 
-	ofxImGui gui;
+	ofxImGui::Gui gui;
     bool enableOtherGui;
 	ofxJSONElement settings;
 	ofxPBR* pbr;

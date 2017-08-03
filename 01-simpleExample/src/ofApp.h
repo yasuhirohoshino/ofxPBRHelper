@@ -12,6 +12,7 @@ class ofApp : public ofBaseApp{
 		void setup();
 		void update();
 		void draw();
+		void exit();
         void renderScene();
 
 		void keyPressed(int key);
@@ -33,10 +34,13 @@ class ofApp : public ofBaseApp{
     ofxPBRLight pbrLight1, pbrLight2;
     ofxPBR pbr;
     ofxPBRHelper pbrHelper;
-    ofxImGui gui;
+    ofxImGui::Gui gui;
     
     ofEasyCam cam;
     
     bool mouseInput = true;
     bool showGui = true;
+
+	ofShader shader;
+	ofShader renderShader;
 };
