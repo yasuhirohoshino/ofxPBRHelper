@@ -325,12 +325,10 @@ void ofxPBRHelper::drawLightsGui(){
             if (ImGui::Selectable(label, selectedLight == lightIndex)) {
                 selectedLight = lightIndex;
                 currentLightKey = elm.first;
-                depthMapId = (ImTextureID)(uintptr_t)pbr->getDepthMap(lightIndex)->getTextureData().textureID;
                 mat = lights[currentLightKey]->getGlobalTransformMatrix();
             }
             lightIndex++;
         }
-        depthMapId = (ImTextureID)(uintptr_t)pbr->getDepthMap(selectedLight)->getTextureData().textureID;
         ImGui::EndChild();
         ImGui::SameLine();
         
@@ -545,10 +543,6 @@ void ofxPBRHelper::drawLightsGui(){
                 //if (ImGui::DragFloat("softShadowExponent", &lightParam->softShadowExponent, 0.1, 0.0, 200.0, "%.2f")) {
                 //    light->setSoftShadowExponent(lightParam->softShadowExponent);
                 //}
-            }
-            if (light->getShadowType() != ShadowType_None && light->getLightType() != LightType_Point) {
-				// show image
-                ImGui::Image(depthMapId, ImVec2(256, 256));
             }
         }
         
