@@ -3,7 +3,6 @@
 #include "ofxPBR.h"
 #include "ofxImGui.h"
 #include "ofxJSON.h"
-#include "ImGuizmo.h"
 #include "ofxPBRFiles.h"
 #include "ofxPBRImage.h"
 #include "ofxPBRHelperParams.h"
@@ -39,7 +38,7 @@ private:
 	void setPBRFromJson();
 
 	ofxImGui::Gui gui;
-    bool enableOtherGui;
+    bool usingOtherGui;
 	ofxJSONElement settings;
 	ofxPBR* pbr;
 	ofxPBRFiles* files;
@@ -51,6 +50,7 @@ private:
     
 	int currentJsonIndex = -1;
 	vector<string> jsonFiles;
+	vector<ofxJSONElement> jsons;
     
     // CubeMaps
 	map<string, pair<ofxPBRCubeMap*, CubeMapParams*>> cubeMaps;
@@ -82,8 +82,6 @@ private:
 	int currentId = 0;
 	int selectedMaterial = 0;
 
-	ImTextureID depthMapId;
-
 	// ImGui extention
 
 	bool Combo(const char* label, int* current_item, const std::vector<std::string>& items, int height_in_items = -1)
@@ -97,10 +95,5 @@ private:
 			height_in_items);
 	};
 
-	// ImGuizmo
-    
-    ofMatrix4x4 mat;
-    ImGuizmo::OPERATION gizmoOperation = ImGuizmo::TRANSLATE;
-    ImGuizmo::MODE gizmoMode = ImGuizmo::WORLD;
     ofCamera * cam;
 };

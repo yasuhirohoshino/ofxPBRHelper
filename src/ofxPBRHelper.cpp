@@ -5,21 +5,26 @@ ofxPBRHelper::~ofxPBRHelper()
 	gui.close();
 }
 
-void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool enableOtherGui)
+void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool usingOtherGui)
 {
-    this->enableOtherGui = enableOtherGui;
-	if(!enableOtherGui) gui.setup();
+    this->usingOtherGui = usingOtherGui;
+	if(!usingOtherGui) gui.setup();
 	this->pbr = pbr;
 	this->folderPath = folderPath;
 
 	ofDisableArbTex();
-	depthMapId = 0;
 
 	files = ofxPBRFiles::getInstance();
 
 	loadJsonFiles();
 	if (jsonFiles.size() != 0) {
-		settings.openLocal(folderPath + "/" + jsonFiles[0] + ".json");
+		jsons.clear();
+		for (auto & j : jsonFiles) {
+			ofxJSONElement json;
+			json.openLocal(folderPath + "/" + j + ".json");
+			jsons.push_back(json);
+		}
+		settings = jsons[0];
 		currentJsonIndex = 0;
 		setPBRFromJson();
 	}
@@ -27,17 +32,13 @@ void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool enableOtherGui)
 		currentJsonIndex = -1;
     }
 	textureLoaded = false;
-    
-    mat = ofMatrix4x4(1,0,0,0,
-                      0,1,0,0,
-                      0,0,1,0,
-                      0,0,0,1);
+
 }
 
 void ofxPBRHelper::drawGui(ofCamera* cam)
 {
     this->cam = cam;
-    if(!enableOtherGui){
+    if(!usingOtherGui){
         gui.begin();
         ImGui::Begin("ofxPBRHelper");
     }
@@ -48,7 +49,7 @@ void ofxPBRHelper::drawGui(ofCamera* cam)
     drawMaterialsGui();
     drawTexturesGui();
     
-    if(!enableOtherGui){
+    if(!usingOtherGui){
         ImGui::End();
         gui.end();
     }
@@ -71,6 +72,7 @@ void ofxPBRHelper::drawGeneralGui(){
         if (ImGui::Button("save as...")) {
             ImGui::OpenPopup("Save As ...");
         }
+
         if (ImGui::BeginPopupModal("Save As ...", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
             static char newJsonName[64] = ""; ImGui::InputText("file name", newJsonName, 64);
@@ -86,16 +88,16 @@ void ofxPBRHelper::drawGeneralGui(){
 
         // load json button
         if (Combo("load", &currentJsonIndex, jsonFiles)) {
-            settings.openLocal(folderPath + "/" + jsonFiles[currentJsonIndex] + ".json");
+			settings = jsons[currentJsonIndex];
             for (auto m : materials) {
                 setMaterialsFromJson(m.first);
             }
             for (auto l : lights) {
                 setLightsFromJson(l.first);
             }
-            for (auto c : cubeMaps) {
-                setCubeMapsFromJson(c.first);
-            }
+			for (auto c : cubeMaps) {
+				setCubeMapsFromJson(c.first);
+			}
             setPBRFromJson();
         }
 
@@ -271,16 +273,16 @@ void ofxPBRHelper::drawPanoramasGui(){
                 cubeMaps[selectedCubeMapKey].first->load(files->getPath() + "/panoramas/" + p.first, cubeMaps[selectedCubeMapKey].second->resolution, true, files->getPath() + "/cubemapCache/");
                 showPanoramaWindow = false;
             }
-			ImGui::PushID(index);
-			// delete panorama button
-			if (ImGui::Button("Delete")) {
-				ImGui::CloseCurrentPopup();
-				erasePanoramaName = p.first;
-				panoramaErase = true;
-				ofFile::removeFile(files->getPath() + "/panoramas/" + erasePanoramaName);
-				ofFile::removeFile(files->getPath() + "/panoramas_small/" + erasePanoramaName);
-			}
-			ImGui::PopID();
+			//ImGui::PushID(index);
+			//// delete panorama button
+			//if (ImGui::Button("Delete")) {
+			//	ImGui::CloseCurrentPopup();
+			//	erasePanoramaName = p.first;
+			//	panoramaErase = true;
+			//	ofFile::removeFile(files->getPath() + "/panoramas/" + erasePanoramaName);
+			//	ofFile::removeFile(files->getPath() + "/panoramas_small/" + erasePanoramaName);
+			//}
+			//ImGui::PopID();
 
 			// right click to popup details
             ImGui::PushID(index);
@@ -325,7 +327,6 @@ void ofxPBRHelper::drawLightsGui(){
             if (ImGui::Selectable(label, selectedLight == lightIndex)) {
                 selectedLight = lightIndex;
                 currentLightKey = elm.first;
-                mat = lights[currentLightKey]->getGlobalTransformMatrix();
             }
             lightIndex++;
         }
@@ -345,13 +346,6 @@ void ofxPBRHelper::drawLightsGui(){
             if (ImGui::Checkbox("enable", &lightParam->enable)) {
                 light->setEnable(lightParam->enable);
             }
-            ImGui::SameLine();
-
-			// enable / disable ImGuizmo
-            static bool enableGizmo = true;
-            if (ImGui::Checkbox("enable Gizmo", &enableGizmo)) {
-
-			}
 
 			// select light type
             const char* lightType[] = { "directional", "spot", "point", "sky" };
@@ -378,33 +372,22 @@ void ofxPBRHelper::drawLightsGui(){
 			// light parameters
             if (light->getLightType() != LightType_Sky) {
                 
-				// scale
-                if (gizmoOperation != ImGuizmo::SCALE)
-                {
-                    if (ImGui::RadioButton("Local", gizmoMode == ImGuizmo::LOCAL))
-                        gizmoMode = ImGuizmo::LOCAL;
-                    ImGui::SameLine();
-                    if (ImGui::RadioButton("World", gizmoMode == ImGuizmo::WORLD))
-                        gizmoMode = ImGuizmo::WORLD;
-                }
-                
-                ImGuizmo::BeginFrame();
-                if (ImGui::RadioButton("Translate", gizmoOperation == ImGuizmo::TRANSLATE))
-                    gizmoOperation = ImGuizmo::TRANSLATE;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Rotate", gizmoOperation == ImGuizmo::ROTATE))
-                    gizmoOperation = ImGuizmo::ROTATE;
-                
-                float matrixTranslation[3], matrixRotation[3], matrixScale[3];
-                ImGuizmo::DecomposeMatrixToComponents(mat.getPtr(), matrixTranslation, matrixRotation, matrixScale);
-                ImGui::DragFloat3("translate", matrixTranslation);
-                ImGui::InputFloat3("rotate", matrixRotation);
-                ImGui::DragFloat2("scale", matrixScale, 0.1);
-                ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, mat.getPtr());
-                ImGuizmo::Manipulate(cam->getModelViewMatrix().getPtr(), cam->getProjectionMatrix().getPtr(), gizmoOperation, gizmoMode, mat.getPtr());
-                if(currentLightKey != ""){
-                    light->setTransformMatrix(mat);
-                }
+				ofVec3f position = light->getPosition();
+				if (ImGui::DragFloat3("position", &position[0])) {
+					ofMatrix4x4 transMat = light->getGlobalTransformMatrix();
+					transMat.setTranslation(position);
+					light->setTransformMatrix(transMat);
+				}
+
+				ofVec3f rotation = light->getOrientationQuat().getEuler();
+				if (ImGui::DragFloat2("rotate", &rotation[0])) {
+					ofQuaternion quatX, quatY;
+					quatX.makeRotate(rotation.x, ofVec3f(1.0, 0.0, 0.0));
+					quatY.makeRotate(rotation.y, ofVec3f(0.0, 1.0, 0.0));
+					ofMatrix4x4 transMat = light->getGlobalTransformMatrix();
+					transMat.setRotate(quatX * quatY);
+					light->setTransformMatrix(transMat);
+				}
                 
 				// set color
 				ofFloatColor color = lightParam->color;
@@ -446,15 +429,6 @@ void ofxPBRHelper::drawLightsGui(){
 						light->getSkyLightLatitude() / PI * canvas_size.y + canvas_pos.y);
                     draw_list->AddCircleFilled(circlePos, 5, ImColor(255, 255, 255));
                     draw_list->AddCircle(circlePos, 5, ImColor(0, 0, 0));
-                    
-					// set scale
-                    float matrixTranslation[3], matrixRotation[3], matrixScale[3];
-                    ImGuizmo::DecomposeMatrixToComponents(mat.getPtr(), matrixTranslation, matrixRotation, matrixScale);
-                    ImGui::DragFloat2("scale", matrixScale, 0.1);
-                    ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, mat.getPtr());
-                    if(currentLightKey != ""){
-                        light->setTransformMatrix(mat);
-                    }
                     
 					// set color
 					ofFloatColor color = lightParam->color;
@@ -960,18 +934,18 @@ void ofxPBRHelper::drawTexturesGui(){
                     showTextureWindow = false;
                 }
                 ImGui::PushID(index);
-				string size = ofToString(t.second->getWidth()) + " x " + ofToString(t.second->getHeight());
-				ImGui::Text(size.c_str());
+				//string size = ofToString(t.second->getWidth()) + " x " + ofToString(t.second->getHeight());
+				//ImGui::Text(size.c_str());
 
-				string s = t.first;
-				ImGui::Text(s.c_str());
+				//string s = t.first;
+				//ImGui::Text(s.c_str());
 
-				if (ImGui::Button("Delete")) {
-					ImGui::CloseCurrentPopup();
-					eraseTexName = t.first;
-					texErase = true;
-					ofFile::removeFile(files->getPath() + "/textures/" + eraseTexName);
-				}
+				//if (ImGui::Button("Delete")) {
+				//	ImGui::CloseCurrentPopup();
+				//	eraseTexName = t.first;
+				//	texErase = true;
+				//	ofFile::removeFile(files->getPath() + "/textures/" + eraseTexName);
+				//}
                 if (ImGui::BeginPopupContextItem("detail"))
                 {
                     string s = t.first;
@@ -1068,7 +1042,6 @@ void ofxPBRHelper::addLight(ofxPBRLight * light, string name)
     pbr->addLight(light);
 	light->setup();
     setLightsFromJson(name);
-    mat = light->getGlobalTransformMatrix();
 }
 
 void ofxPBRHelper::addMaterial(ofxPBRMaterial * material, string name)
@@ -1215,7 +1188,7 @@ void ofxPBRHelper::saveJson(string fileName)
 		lightJson[light.first] = json;
 	}
 	settings["light"] = lightJson;
-
+	jsons.push_back(settings);
 	settings.save(folderPath + "/" + fileName + ".json");
 }
 
@@ -1306,6 +1279,8 @@ void ofxPBRHelper::setLightsFromJson(string lightName)
 		ofxPBRLight* light = lights[lightName];
 
 		if (settings.isNull() == false && settings["light"][lightName].isNull() == false) {
+			light->setup();
+
 			Json::Value p = settings["light"][lightName];
 			ofxPBRLightData params;
 			params.enable = p["enable"].asBool();

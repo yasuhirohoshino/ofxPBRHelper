@@ -29,6 +29,8 @@ void ofApp::setup(){
     ofSetConeResolution(32, 1);
     ofSetBoxResolution(1);
     ofSetCylinderResolution(32, 2);
+
+	cam.setPosition(ofVec3f(0.0, 0.0, 700));
 }
 
 //--------------------------------------------------------------
@@ -57,12 +59,12 @@ void ofApp::draw(){
 
     gui.begin();
     {
-		//if (ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT)) {
-		//	cam.enableMouseInput();
-		//}
-		//else {
-		//	cam.disableMouseInput();
-		//}
+		if (ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT)) {
+			cam.enableMouseInput();
+		}
+		else {
+			cam.disableMouseInput();
+		}
 		//if (ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL)) {
 		//	if (ImGui::GetIO().MouseDown[1] != 0.0) {
 		//		cam.truck(-ImGui::GetIO().MouseDelta.x * 2);
@@ -105,7 +107,7 @@ void ofApp::renderScene(){
     ofEnableDepthTest();
 	ofEnableAlphaBlending();
 
-	pbr.beginCustomRenderer(&renderShader);
+	pbr.beginDefaultRenderer();
 
 	planeMaterial.begin(&pbr);
 	ofDrawPlane(-350 * 2, 150, 0, 300, 300);
@@ -135,7 +137,7 @@ void ofApp::renderScene(){
 	ofDrawBox(0, -5, 0, 5000, 10, 5000);
 	floorMaterial.end();
 
-	pbr.endCustomRenderer();
+	pbr.endDefaultRenderer();
 
     ofDisableDepthTest();
 }
