@@ -6,18 +6,22 @@ public:
 		ofFile file;
 		file.open(path);
 
-		if (file.getExtension() == "hdr" || file.getExtension() == "exr" || file.getExtension() == "dds" || file.getExtension() == "tga" || file.getExtension() == "tif" || file.getExtension() == "png") {
+		ofLogLevel logLevel = ofGetLogLevel();
+		ofSetLogLevel(OF_LOG_SILENT);
+
+		sImg.load(file.getAbsolutePath());
+		if (sImg.getPixels().getBitsPerPixel() != 0) {
+			isFloat = false;
+		}
+		else {
 			fImg.load(file.getAbsolutePath());
 			isFloat = true;
 		}
-		else {
-			img.load(file.getAbsolutePath());
-			isFloat = false;
-		}
+		ofSetLogLevel(logLevel);
 	}
 
 	void fetchPixels(ofShortPixels* pixel) {
-		pixel = &img.getPixels();
+		pixel = &sImg.getPixels();
 	}
 
 	void fetchPixels(ofFloatPixels* pixel) {
@@ -29,12 +33,12 @@ public:
 			return fImg.getTexture();
 		}
 		else {
-			return img.getTexture();
+			return sImg.getTexture();
 		}
 	}
 
 	void setImage(ofImage * img) {
-		this->img = *img;
+		this->sImg = *img;
 		isFloat = false;
 	}
 
@@ -52,7 +56,7 @@ public:
 	}
 
 	ofShortImage* getImage() {
-		return &img;
+		return &sImg;
 	}
 
 	void resize(int width, int height) {
@@ -60,7 +64,7 @@ public:
 			fImg.resize(width, height);
 		}
 		else {
-			img.resize(width, height);
+			sImg.resize(width, height);
 		}
 	}
 
@@ -69,7 +73,7 @@ public:
 			fImg.save(path);
 		}
 		else {
-			img.save(path);
+			sImg.save(path);
 		}
 	}
 
@@ -78,7 +82,7 @@ public:
 			return fImg.getColor(x, y);
 		}
 		else {
-			return img.getColor(x, y);
+			return sImg.getColor(x, y);
 		}
 	}
 
@@ -87,7 +91,7 @@ public:
 			return fImg.getWidth();
 		}
 		else {
-			return img.getWidth();
+			return sImg.getWidth();
 		}
 	}
 
@@ -96,12 +100,12 @@ public:
 			return fImg.getHeight();
 		}
 		else {
-			return img.getHeight();
+			return sImg.getHeight();
 		}
 	}
 
 	ofFloatImage fImg;
-	ofShortImage img;
+	ofShortImage sImg;
 
 private:
 	bool isFloat = false;
