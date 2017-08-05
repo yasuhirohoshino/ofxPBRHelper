@@ -35,9 +35,8 @@ void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool usingOtherGui)
 
 }
 
-void ofxPBRHelper::drawGui(ofCamera* cam)
+void ofxPBRHelper::drawGui()
 {
-    this->cam = cam;
     if(!usingOtherGui){
         gui.begin();
         ImGui::Begin("ofxPBRHelper");
@@ -307,7 +306,7 @@ void ofxPBRHelper::drawLightsGui(){
     if(ImGui::CollapsingHeader("Lights", 0, true, true)){
 
 		// select lights
-        ImGui::BeginChild("light list", ImVec2(150, 600), true);
+        ImGui::BeginChild("light list", ImVec2(150, 350), true);
         int lightIndex = 0;
         for (auto elm : lights) {
             char label[128];

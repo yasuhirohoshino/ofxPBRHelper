@@ -40,7 +40,4 @@ class ofApp : public ofBaseApp{
     
     bool mouseInput = true;
     bool showGui = true;
-
-	ofShader shader;
-	ofShader renderShader;
 };

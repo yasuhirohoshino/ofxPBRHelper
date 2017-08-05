@@ -4,7 +4,6 @@
 void ofApp::setup(){
     ofDisableArbTex();
 
-	renderShader.load("ofxPBRShaders/default2.vert", "ofxPBRShaders/default2.frag");
 	cam.setupPerspective(false, 60, 1, 8000);
 	scene = bind(&ofApp::renderScene, this);
 	pbr.setup(scene, &cam, 2048);
@@ -22,8 +21,6 @@ void ofApp::setup(){
 	pbrHelper.addMaterial(&cylinderMaterial, "cylinder");
 	pbrHelper.addMaterial(&planeMaterial, "plane");
 	pbrHelper.addCubeMap(&cubeMap1, "cubeMap1");
-
-	shader.load("ofxPBRShaders/default");
     
     ofSetSphereResolution(32);
     ofSetConeResolution(32, 1);
@@ -45,7 +42,6 @@ void ofApp::draw(){
     
 	pbr.updateDepthMaps();
 
-	//pbr.renderScene();
     cam.begin();
 	pbr.renderScene();
     cam.end();
@@ -53,7 +49,7 @@ void ofApp::draw(){
     ofDisableDepthTest();
     ofEnableAlphaBlending();
     
-    cam.begin();
+	cam.begin();
     pbrHelper.drawLights();
     cam.end();
 
@@ -65,15 +61,6 @@ void ofApp::draw(){
 		else {
 			cam.disableMouseInput();
 		}
-		//if (ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL)) {
-		//	if (ImGui::GetIO().MouseDown[1] != 0.0) {
-		//		cam.truck(-ImGui::GetIO().MouseDelta.x * 2);
-		//		cam.boom(ImGui::GetIO().MouseDelta.y * 2);
-		//	}
-		//	if (ImGui::GetIO().MouseWheel != 0.0) {
-		//		cam.dolly(ImGui::GetIO().MouseWheel * 10.0);
-		//	}
-		//}
 
 		ImGui::Begin("control panel");
 		{
@@ -90,7 +77,7 @@ void ofApp::draw(){
 		ImGui::End();
         if(showGui){
             ImGui::Begin("ofxPBR");
-            pbrHelper.drawGui(&cam);
+            pbrHelper.drawGui();
             ImGui::End();
         }
     }
@@ -150,7 +137,7 @@ void ofApp::keyPressed(int key){
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
 	if (key == ' ') {
-		renderShader.load("ofxPBRShaders/default2.vert", "ofxPBRShaders/default2.frag");
+
 	}
 }
 

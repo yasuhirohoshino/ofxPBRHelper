@@ -11,7 +11,7 @@ class ofxPBRHelper {
 public:
 	~ofxPBRHelper();
 	void setup(ofxPBR* pbr, string folderPath, bool enableOtherGui = false);
-	void drawGui(ofCamera* cam);
+	void drawGui();
     void drawLights();
     
 	void addLight(ofxPBRLight* light, string name);
