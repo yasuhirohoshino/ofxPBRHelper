@@ -25,6 +25,7 @@ private:
     void drawGeneralGui();
     void drawCubeMapsGui();
     void drawLightsGui();
+	void drawMaterialDetailGui(ImTextureID imTexId, int index, function<void()> deleteFunc, function<void()> parameterFunc);
     void drawMaterialsGui();
     
     void drawPanoramasGui();
