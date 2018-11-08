@@ -3,14 +3,31 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
     ofDisableArbTex();
+
+	cam.setupPerspective(false, 60, 1, 12000);
+
+	// pbr
+	scene = bind(&ofApp::renderScene, this);
+	pbr.setup(scene, &cam, 1024);
+	gui.setup();
+
+	// pbr helper
+	ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
+	pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);
+	pbrHelper.addLight(&pbrLight, "light1");
+	pbrHelper.addMaterial(&material1, "material1");
+	pbrHelper.addMaterial(&material2, "material2");
+	pbrHelper.addCubeMap(&cubemap[0], "cubeMap1");
+	pbrHelper.addCubeMap(&cubemap[1], "cubeMap2");
+
+	// model
     model.loadModel("dragon.obj");
     for (int i = 0; i < model.getNumMeshes(); i++) {
         modelMesh.append(model.getMesh(i));
     }
     modelScale = model.getModelMatrix().getScale();
     
-    pbr.setup(1024);
-    
+	// fbo
     defaultFboSettings.textureTarget = GL_TEXTURE_2D;
     defaultFboSettings.useDepth = true;
     defaultFboSettings.depthStencilAsTexture = true;
@@ -21,23 +38,10 @@ void ofApp::setup(){
     defaultFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
     resizeFbos();
     
-    cam.setupPerspective(false, 60, 1, 12000);
-    
-    scene = bind(&ofApp::renderScene, this);
-    
-    ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
-    pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);
-    pbrHelper.addLight(&pbrLight, "light");
-    pbrHelper.addMaterial(&material1, "material1");
-    pbrHelper.addMaterial(&material2, "material2");
-    pbrHelper.addCubeMap(&cubemap[0], "cubeMap1");
-    pbrHelper.addCubeMap(&cubemap[1], "cubeMap2");
-    
+	// shader
     string shaderPath = "shaders/postEffect/";
     tonemap.load(shaderPath + "tonemap");
     fxaa.load(shaderPath + "fxaa");
-    
-    gui.setup();
 }
 
 //--------------------------------------------------------------
@@ -47,29 +51,24 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    pbr.makeDepthMap(scene);
+	ofDisableAlphaBlending();
+	ofEnableDepthTest();
+
+	pbr.updateDepthMaps();
     
-    ofDisableAlphaBlending();
-    ofEnableDepthTest();
-    
-    glCullFace(GL_FRONT);
     firstPass.begin();
     firstPass.activateAllDrawBuffers();
     ofClear(0);
     cam.begin();
-    pbr.drawEnvironment(&cam);
+    pbr.drawEnvironment();
     scene();
     cam.end();
     firstPass.end();
-    glDisable(GL_CULL_FACE);
     
     ofDisableDepthTest();
     ofEnableAlphaBlending();
     
     // post effect
-    
     secondPass.begin();
     ofClear(0);
     tonemap.begin();
@@ -86,6 +85,7 @@ void ofApp::draw(){
     secondPass.draw(0, 0);
     fxaa.end();
     
+
     gui.begin();
     {
         ImGui::Begin("control panel");
@@ -134,7 +134,7 @@ void ofApp::resizeFbos(){
 void ofApp::renderScene(){
     ofEnableDepthTest();
     
-    pbr.begin(&cam);
+	pbr.beginDefaultRenderer();
     
     material1.begin(&pbr);
     ofPushMatrix();
@@ -147,7 +147,7 @@ void ofApp::renderScene(){
     ofDrawBox(0, -5, 0, 5000, 10, 5000);
     material2.end();
     
-    pbr.end();
+    pbr.endDefaultRenderer();
     
     ofDisableDepthTest();
 }
