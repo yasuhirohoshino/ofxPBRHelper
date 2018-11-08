@@ -41,7 +41,7 @@ class ofApp : public ofBaseApp{
     ofEasyCam cam;
     ofVboMesh mesh;
     
-    ofxImGui gui;
+    ofxImGui::Gui gui;
     bool mouseInput = true;
     bool showGui = true;
 };

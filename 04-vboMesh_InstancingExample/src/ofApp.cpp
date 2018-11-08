@@ -18,7 +18,7 @@ void ofApp::setup(){
     
     renderShader.load("shaders/instancing.vert", "shaders/ofxPBRShaders/default.frag");
     renderShader.begin();
-    renderShader.setUniformTexture("posTex", tex, 13);
+    renderShader.setUniformTexture("posTex", tex, pbr.getLastTextureIndex());
     renderShader.end();
 
     cam.setupPerspective(false, 60, 1, 12000);
@@ -26,9 +26,8 @@ void ofApp::setup(){
     mesh = ofMesh::box(50,50,50,1,1,1);
     mesh.setUsage(GL_STATIC_DRAW);
     
-    scene = bind(mem_fn(&ofApp::renderScene), this);
-    
-    pbr.setup(1024);
+    scene = bind(&ofApp::renderScene, this);
+    pbr.setup(scene, &cam, 2048);
     ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
     pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);
     pbrHelper.addLight(&pbrLight1, "light1");
@@ -45,10 +44,10 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    pbr.makeDepthMap(scene);
+	pbr.updateDepthMaps();
     
     cam.begin();
-    pbr.drawEnvironment(&cam);
+    pbr.drawEnvironment();
     scene();
     cam.end();
     
@@ -78,13 +77,20 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::renderScene(){
     ofEnableDepthTest();
-    pbr.begin(&cam, &renderShader);
+    pbr.beginCustomRenderer(&renderShader);
     
     cubeMaterial.begin(&pbr);
     mesh.drawInstanced(OF_MESH_FILL, pos.size());
     cubeMaterial.end();
     
-    pbr.end();
+    pbr.endCustomRenderer();
+
+	pbr.beginDefaultRenderer();
+	cubeMaterial.begin(&pbr);
+	ofDrawBox(0, -500, 0, 5000, 10, 5000);
+	cubeMaterial.end();
+	pbr.endDefaultRenderer();
+
     ofDisableDepthTest();
 }
 //--------------------------------------------------------------
