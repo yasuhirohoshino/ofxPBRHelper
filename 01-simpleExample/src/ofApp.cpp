@@ -48,20 +48,9 @@ void ofApp::draw(){
     
     ofDisableDepthTest();
     ofEnableAlphaBlending();
-    
-	cam.begin();
-    pbrHelper.drawLights();
-    cam.end();
 
     gui.begin();
     {
-		if (ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT)) {
-			cam.enableMouseInput();
-		}
-		else {
-			cam.disableMouseInput();
-		}
-
 		ImGui::Begin("control panel");
 		{
 			ImGui::Checkbox("show gui", &showGui);

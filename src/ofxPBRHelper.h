@@ -2,15 +2,16 @@
 #include "ofMain.h"
 #include "ofxPBR.h"
 #include "ofxImGui.h"
-#include "ofxJSON.h"
 #include "ofxPBRFiles.h"
 #include "ofxPBRImage.h"
 #include "ofxPBRHelperParams.h"
 
+#include <glm/gtx/matrix_decompose.hpp>
+
 class ofxPBRHelper {
 public:
 	~ofxPBRHelper();
-	void setup(ofxPBR* pbr, string folderPath, bool enableOtherGui = false);
+	void setup(ofxPBR* pbr, string folderPath, bool usingOtherGui = false);
 	void drawGui();
     void drawLights();
     
@@ -20,6 +21,10 @@ public:
     
     void addSharedMaterial(map<string, pair<ofxPBRMaterial*, MaterialParams*>> sharedMaterials);
     void addSharedCubeMap(map<string, pair<ofxPBRCubeMap*, CubeMapParams*>> sharedCubeMaps);
+
+	void setParameters(string jsonName);
+	vector<string> getJsonNames();
+	string getCurrentJsonName();
 
 private:
     void drawGeneralGui();
@@ -36,11 +41,11 @@ private:
 	void setMaterialsFromJson(string materialName);
 	void setLightsFromJson(string lightName);
 	void setCubeMapsFromJson(string cubeMapName);
-	void setPBRFromJson();
+	void setPBRFromJson(); 
 
-	ofxImGui::Gui gui;
+	ofxImGui::Gui* gui;
     bool usingOtherGui;
-	ofxJSONElement settings;
+	ofJson settings;
 	ofxPBR* pbr;
 	ofxPBRFiles* files;
 	string folderPath;
@@ -51,7 +56,7 @@ private:
     
 	int currentJsonIndex = -1;
 	vector<string> jsonFiles;
-	vector<ofxJSONElement> jsons;
+	map<string, ofJson> jsons;
     
     // CubeMaps
 	map<string, pair<ofxPBRCubeMap*, CubeMapParams*>> cubeMaps;
@@ -84,7 +89,6 @@ private:
 	int selectedMaterial = 0;
 
 	// ImGui extention
-
 	bool Combo(const char* label, int* current_item, const std::vector<std::string>& items, int height_in_items = -1)
 	{
 		return ImGui::Combo(

@@ -2,13 +2,16 @@
 
 ofxPBRHelper::~ofxPBRHelper()
 {
-	gui.close();
+
 }
 
 void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool usingOtherGui)
 {
     this->usingOtherGui = usingOtherGui;
-	if(!usingOtherGui) gui.setup();
+	if (!usingOtherGui) {
+		gui = new ofxImGui::Gui();
+		gui->setup();
+	}
 	this->pbr = pbr;
 	this->folderPath = folderPath;
 
@@ -20,11 +23,12 @@ void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool usingOtherGui)
 	if (jsonFiles.size() != 0) {
 		jsons.clear();
 		for (auto & j : jsonFiles) {
-			ofxJSONElement json;
-			json.openLocal(folderPath + "/" + j + ".json");
-			jsons.push_back(json);
+			ofFile jsonFile(folderPath + "/" + j);
+			ofJson json;
+			jsonFile >> json;
+			jsons.insert(map<string, ofJson>::value_type(j, json));
 		}
-		settings = jsons[0];
+		settings = jsons[jsonFiles.front()];
 		currentJsonIndex = 0;
 		setPBRFromJson();
 	}
@@ -32,13 +36,12 @@ void ofxPBRHelper::setup(ofxPBR * pbr, string folderPath, bool usingOtherGui)
 		currentJsonIndex = -1;
     }
 	textureLoaded = false;
-
 }
 
 void ofxPBRHelper::drawGui()
 {
     if(!usingOtherGui){
-        gui.begin();
+        gui->begin();
         ImGui::Begin("ofxPBRHelper");
     }
     
@@ -50,16 +53,16 @@ void ofxPBRHelper::drawGui()
     
     if(!usingOtherGui){
         ImGui::End();
-        gui.end();
+        gui->end();
     }
 }
 
 void ofxPBRHelper::drawGeneralGui(){
-    if(ImGui::CollapsingHeader("General", 0, true, true)){
+    if(ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen)){
 
 		// save json button
         if (ImGui::Button("save")) {
-            if (settings.isNull() == true && currentJsonIndex == -1) {
+            if (settings.is_null() == true && currentJsonIndex == -1) {
                 ImGui::OpenPopup("Save As ...");
             }else{
                 saveJson(jsonFiles[currentJsonIndex]);
@@ -74,20 +77,23 @@ void ofxPBRHelper::drawGeneralGui(){
 
         if (ImGui::BeginPopupModal("Save As ...", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            static char newJsonName[64] = ""; ImGui::InputText("file name", newJsonName, 64);
+            static char newJsonName[64] = ""; 
+			ImGui::InputText("file name", newJsonName, 64);
             if (ImGui::Button("save", ImVec2(120, 0))) {
                 saveJson(newJsonName);
                 ImGui::CloseCurrentPopup();
                 loadJsonFiles();
             }
             ImGui::SameLine();
-            if (ImGui::Button("cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+            if (ImGui::Button("cancel", ImVec2(120, 0))) { 
+				ImGui::CloseCurrentPopup(); 
+			}
             ImGui::EndPopup();
         }
 
         // load json button
-        if (Combo("load", &currentJsonIndex, jsonFiles)) {
-			settings = jsons[currentJsonIndex];
+        if (Combo("load scene", &currentJsonIndex, jsonFiles)) {
+			settings = jsons[jsonFiles[currentJsonIndex]];
             for (auto m : materials) {
                 setMaterialsFromJson(m.first);
             }
@@ -98,6 +104,7 @@ void ofxPBRHelper::drawGeneralGui(){
 				setCubeMapsFromJson(c.first);
 			}
             setPBRFromJson();
+
         }
 
         // enable / disable cubemap
@@ -122,7 +129,7 @@ void ofxPBRHelper::drawGeneralGui(){
 
 // cubemap gui
 void ofxPBRHelper::drawCubeMapsGui(){
-    if(ImGui::CollapsingHeader("Cube Map", 0, true, true)){
+    if(ImGui::CollapsingHeader("Cube Map", ImGuiTreeNodeFlags_DefaultOpen)){
 
 		// loaded cubemap list
         ImGui::BeginChild("cubeMap list", ImVec2(150, 200), true);
@@ -261,7 +268,9 @@ void ofxPBRHelper::drawPanoramasGui(){
                 totalWidth = btnRes.x + ImGui::GetStyle().ItemSpacing.x;
             }
             
-            ImGui::BeginChild(index, ImVec2(200, 125), false);
+			string childId = "panorama" + ofToString(index);
+            ImGui::BeginChild(childId.c_str(), ImVec2(200, 125), false);
+			ImVec2 space = ImGui::GetStyle().ItemInnerSpacing;
             ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
 
 			// show panorama image & set cubemap button
@@ -295,6 +304,8 @@ void ofxPBRHelper::drawPanoramasGui(){
 			// show filename
             string s = p.first;
             ImGui::Text(s.c_str());
+
+			ImGui::GetStyle().ItemInnerSpacing = space;
             ImGui::EndChild();
             index++;
         }
@@ -303,7 +314,7 @@ void ofxPBRHelper::drawPanoramasGui(){
 }
 
 void ofxPBRHelper::drawLightsGui(){
-    if(ImGui::CollapsingHeader("Lights", 0, true, true)){
+    if(ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen)){
 
 		// select lights
         ImGui::BeginChild("light list", ImVec2(150, 350), true);
@@ -359,22 +370,18 @@ void ofxPBRHelper::drawLightsGui(){
             
 			// light parameters
             if (light->getLightType() != LightType_Sky) {
-                
 				ofVec3f position = light->getPosition();
 				if (ImGui::DragFloat3("position", &position[0])) {
-					ofMatrix4x4 transMat = light->getGlobalTransformMatrix();
-					transMat.setTranslation(position);
-					light->setTransformMatrix(transMat);
+					light->setGlobalPosition(position);
 				}
 
-				ofVec3f rotation = light->getOrientationQuat().getEuler();
+				ofQuaternion lightQuat = light->getGlobalOrientation();
+				ofVec3f rotation = lightQuat.getEuler();
 				if (ImGui::DragFloat2("rotate", &rotation[0])) {
 					ofQuaternion quatX, quatY;
 					quatX.makeRotate(rotation.x, ofVec3f(1.0, 0.0, 0.0));
 					quatY.makeRotate(rotation.y, ofVec3f(0.0, 1.0, 0.0));
-					ofMatrix4x4 transMat = light->getGlobalTransformMatrix();
-					transMat.setRotate(quatX * quatY);
-					light->setTransformMatrix(transMat);
+					light->setGlobalOrientation(quatX * quatY);
 				}
                 
 				// set color
@@ -458,7 +465,7 @@ void ofxPBRHelper::drawLightsGui(){
 
 				// set spot light gradient
 				float gradient = lightParam->spotLightGradient;
-                if (ImGui::DragFloat("spotFactor", &gradient, 0.1, 0.0, 10.0)) {
+                if (ImGui::DragFloat("gradient", &gradient, 0.1, 0.0, 10.0)) {
                     light->setSpotLightGradient(gradient);
                 }
             }
@@ -532,7 +539,7 @@ void ofxPBRHelper::drawMaterialDetailGui(ImTextureID imTexId, int index, functio
 }
 
 void ofxPBRHelper::drawMaterialsGui(){
-    if(ImGui::CollapsingHeader("Materials", 0, true, true)){
+    if(ImGui::CollapsingHeader("Materials", ImGuiTreeNodeFlags_DefaultOpen)){
         ImGui::BeginChild("material list", ImVec2(150, 600), true);
         
         int materialIndex = 0;
@@ -824,8 +831,10 @@ void ofxPBRHelper::drawTexturesGui(){
 				}
 
 				ImTextureID textureID = (ImTextureID)(uintptr_t)t.second->getTextureData().textureID;
-				ImGui::BeginChild(index, ImVec2(100, 125), false);
-				//ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
+				string childId = "texture" + ofToString(index);
+				ImGui::BeginChild(childId.c_str(), ImVec2(100, 125), false);
+				ImVec2 space = ImGui::GetStyle().ItemInnerSpacing;
+				ImGui::GetStyle().ItemInnerSpacing = ImVec2(0, 0);
 				if (ImGui::ImageButton(textureID, ImVec2(btnRes.x, btnRes.y), ImVec2(0, 0), ImVec2(1, 1), 1.0)) {
 
 					switch (currentId) {
@@ -902,6 +911,11 @@ void ofxPBRHelper::drawTexturesGui(){
 				}
 				ImGui::PopID();
 
+				// show filename
+				string s = t.first;
+				ImGui::Text(s.c_str());
+
+				ImGui::GetStyle().ItemInnerSpacing = space;
 				ImGui::EndChild();
 				index++;
 			}
@@ -920,51 +934,58 @@ void ofxPBRHelper::drawLights(){
         switch (light->getLightType()) {
             case LightType_Sky:
             case LightType_Directional:
-                ofPushStyle();
-                ofNoFill();
-                ofPushMatrix();
-                ofMultMatrix(light->getGlobalTransformMatrix());
-                ofDrawBox(0, 0, -light->getFarClip() / 2, pbr->getDepthMapResolution(), pbr->getDepthMapResolution(), light->getFarClip());
-                radius = pbr->getDepthMapResolution() / sqrt(2);
-                for(int i=0;i<4;i++){
-                    ofDrawLine(0, 0, 0, radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), 0);
-                }
-                ofPopMatrix();
-                ofPopStyle();
+			{
+				ofPushStyle();
+				ofNoFill();
+				ofPushMatrix();
+				ofMultMatrix(light->getGlobalTransformMatrix());
+				ofDrawBox(0, 0, -light->getFarClip() / 2, pbr->getDepthMapResolution(), pbr->getDepthMapResolution(), light->getFarClip());
+				radius = pbr->getDepthMapResolution() / sqrt(2);
+				for (int i = 0; i < 4; i++) {
+					ofDrawLine(0, 0, 0, radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), 0);
+				}
+				ofPopMatrix();
+				ofPopStyle();
+			}
                 break;
                 
             case LightType_Point:
-                ofPushStyle();
-                ofNoFill();
-                ofPushMatrix();
-                ofSetCircleResolution(64);
-                ofTranslate(light->getGlobalTransformMatrix().getTranslation());
-                ofPushMatrix();
-                ofDrawCircle(0, 0, 0, light->getPointLightRadius());
-                ofRotateX(90);
-                ofDrawCircle(0, 0, 0, light->getPointLightRadius());
-                ofRotateY(90);
-                ofDrawCircle(0, 0, 0, light->getPointLightRadius());
-                ofPopMatrix();
-                ofPopMatrix();
-                ofPopStyle();
+			{
+				ofPushStyle();
+				ofNoFill();
+				ofPushMatrix();
+				ofSetCircleResolution(64);
+				glm::vec3 pos = light->getPosition();
+				ofTranslate(pos);
+				ofPushMatrix();
+				ofDrawCircle(0, 0, 0, light->getPointLightRadius());
+				ofRotateX(90);
+				ofDrawCircle(0, 0, 0, light->getPointLightRadius());
+				ofRotateY(90);
+				ofDrawCircle(0, 0, 0, light->getPointLightRadius());
+				ofPopMatrix();
+				ofPopMatrix();
+				ofPopStyle();
+			}
                 break;
                 
             case LightType_Spot:
-                ofPushStyle();
-                ofNoFill();
-                ofPushMatrix();
-                ofMultMatrix(light->getGlobalTransformMatrix());
-                ofPushMatrix();
-                radius = light->getSpotLightDistance() * tan(ofDegToRad(light->getSpotLightCutoff()));
-                for(int i=0;i<4;i++){
-                    ofDrawLine(0, 0, 0, radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), -light->getSpotLightDistance());
-                    ofDrawLine(radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), -light->getSpotLightDistance(),
-                               radius * sin(PI / 4 + ((i + 1) % 4) * PI / 2), radius * cos(PI / 4 + ((i + 1) % 4) * PI / 2), -light->getSpotLightDistance());
-                }
-                ofPopMatrix();
-                ofPopMatrix();
-                ofPopStyle();
+			{
+				ofPushStyle();
+				ofNoFill();
+				ofPushMatrix();
+				ofMultMatrix(light->getGlobalTransformMatrix());
+				ofPushMatrix();
+				radius = light->getSpotLightDistance() * tan(ofDegToRad(light->getSpotLightCutoff()));
+				for (int i = 0; i < 4; i++) {
+					ofDrawLine(0, 0, 0, radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), -light->getSpotLightDistance());
+					ofDrawLine(radius * sin(PI / 4 + i * PI / 2), radius * cos(PI / 4 + i * PI / 2), -light->getSpotLightDistance(),
+						radius * sin(PI / 4 + ((i + 1) % 4) * PI / 2), radius * cos(PI / 4 + ((i + 1) % 4) * PI / 2), -light->getSpotLightDistance());
+				}
+				ofPopMatrix();
+				ofPopMatrix();
+				ofPopStyle();
+			}
                 break;
                 
             default:
@@ -1014,6 +1035,41 @@ void ofxPBRHelper::addSharedCubeMap(map<string, pair<ofxPBRCubeMap*, CubeMapPara
     }
 }
 
+void ofxPBRHelper::setParameters(string jsonName)
+{
+	settings = jsons[jsonName];
+	for (auto m : materials) {
+		setMaterialsFromJson(m.first);
+	}
+	for (auto l : lights) {
+		setLightsFromJson(l.first);
+	}
+	for (auto c : cubeMaps) {
+		setCubeMapsFromJson(c.first);
+	}
+	setPBRFromJson();
+	int index = 0;
+	for (auto & j : jsons) {
+		if (j.first == jsonName) {
+			currentJsonIndex = index;
+			break;
+		}
+		else {
+			index++;
+		}
+	}
+}
+
+vector<string> ofxPBRHelper::getJsonNames()
+{
+	return jsonFiles;
+}
+
+string ofxPBRHelper::getCurrentJsonName()
+{
+	return jsonFiles[currentJsonIndex];
+}
+
 // JSON
 
 void ofxPBRHelper::loadJsonFiles()
@@ -1023,7 +1079,7 @@ void ofxPBRHelper::loadJsonFiles()
 	jsonFiles.clear();
 	for (auto file : dir.getFiles()) {
 		if (file.getExtension() == "json") {
-			jsonFiles.push_back(file.getBaseName());
+			jsonFiles.push_back(file.getFileName());
 		}
 	}
 }
@@ -1035,7 +1091,7 @@ void ofxPBRHelper::saveJson(string fileName)
 	settings["pbr"]["enableEnvironment"] = pbrParams.enableEnvironment;
 	settings["pbr"]["shadowMapRes"] = pbrParams.shadowMapRes;
 
-	Json::Value cubeMapJson;
+	ofJson cubeMapJson;
 	for (auto cubeMap : cubeMaps) {
 		ofxPBRCubeMap* c = cubeMap.second.first;
 		CubeMapParams* p = cubeMap.second.second;
@@ -1048,7 +1104,7 @@ void ofxPBRHelper::saveJson(string fileName)
 	}
 	settings["cubeMap"] = cubeMapJson;
 
-	Json::Value materialJson;
+	ofJson materialJson;
 	for (auto material : materials) {
 		ofxPBRMaterial* m = material.second.first;
 		MaterialParams* p = material.second.second;
@@ -1091,21 +1147,23 @@ void ofxPBRHelper::saveJson(string fileName)
 	}
 	settings["material"] = materialJson;
 
-	Json::Value lightJson;
+	ofJson lightJson;
 	for (auto light : lights) {
 		ofxPBRLight* l = light.second;
 		ofxPBRLightData* p = &l->getParameters();
-		Json::Value json;
+		ofJson json;
 
 		json["enable"] = p->enable;
 		json["lightType"] = p->lightType;
 		json["intensity"] = p->intensity;
 
+		ofMatrix4x4 mat = l->getGlobalTransformMatrix();
 		for (int i = 0; i < 4; i++) {
-			json["matrix"][0 + i * 4] = l->getGlobalTransformMatrix().getRowAsVec4f(i).x;
-			json["matrix"][1 + i * 4] = l->getGlobalTransformMatrix().getRowAsVec4f(i).y;
-			json["matrix"][2 + i * 4] = l->getGlobalTransformMatrix().getRowAsVec4f(i).z;
-			json["matrix"][3 + i * 4] = l->getGlobalTransformMatrix().getRowAsVec4f(i).w;
+			json["matrix"][0 + i * 4] = mat.getRowAsVec4f(i).x;
+			json["matrix"][1 + i * 4] = mat.getRowAsVec4f(i).y;
+			json["matrix"][2 + i * 4] = mat.getRowAsVec4f(i).z;
+			json["matrix"][3 + i * 4] = mat.getRowAsVec4f(i).w;
+
 		}
 
 		json["color"][0] = p->color.r;
@@ -1118,6 +1176,7 @@ void ofxPBRHelper::saveJson(string fileName)
 
 		json["spotLightGradient"] = p->spotLightGradient;
 		json["spotLightCutoff"] = p->spotLightCutoff;
+		json["spotLightDistance"] = p->spotLightDistance;
 
 		json["skyLightLatitude"] = p->skyLightLatitude;
 		json["skyLightLongitude"] = p->skyLightLongitude;
@@ -1126,88 +1185,88 @@ void ofxPBRHelper::saveJson(string fileName)
 		lightJson[light.first] = json;
 	}
 	settings["light"] = lightJson;
-	jsons.push_back(settings);
-	settings.save(folderPath + "/" + fileName + ".json");
+	jsons.insert(map<string, ofJson>::value_type(fileName, settings));
+	ofSaveJson(folderPath + "/" + fileName, settings);
 }
 
 void ofxPBRHelper::setMaterialsFromJson(string materialName)
 {
 	ofxPBRMaterial* material = materials[materialName].first;
 	MaterialParams* params = materials[materialName].second;
-	if (settings.isNull() == false && settings["material"][materialName].isNull() == false) {
-		Json::Value m = settings["material"][materialName];
+	if (settings.is_null() == false && settings["material"][materialName].is_null() == false) {
+		ofJson m = settings["material"][materialName];
 		material->baseColor = ofFloatColor(
-			m["baseColor"]["r"].asFloat(),
-			m["baseColor"]["g"].asFloat(),
-			m["baseColor"]["b"].asFloat(),
-			m["baseColor"]["a"].asFloat()
+			m["baseColor"]["r"],
+			m["baseColor"]["g"],
+			m["baseColor"]["b"],
+			m["baseColor"]["a"]
 		);
-		string baseColorTex = m["baseColorTex"].asString();
+		string baseColorTex = m["baseColorTex"];
 		if (files->textures.find(baseColorTex) != files->textures.end()) {
 			material->baseColorMap = files->textures[baseColorTex];
 			params->baseColorTex = baseColorTex;
 		}
-		material->enableBaseColorMap = m["enableBaseColorMap"].asBool();
+		material->enableBaseColorMap = m["enableBaseColorMap"];
 
-		string roughnessTex = m["roughnessTex"].asString();
+		string roughnessTex = m["roughnessTex"];
 		if (files->textures.find(roughnessTex) != files->textures.end()) {
 			material->roughnessMap = files->textures[roughnessTex];
 			params->roughnessTex = roughnessTex;
 		}
-		material->enableRoughnessMap = m["enableRoughnessMap"].asBool();
-		material->roughness = m["roughness"].asFloat();
+		material->enableRoughnessMap = m["enableRoughnessMap"];
+		material->roughness = m["roughness"];
 
-		string metallicTex = m["metallicTex"].asString();
+		string metallicTex = m["metallicTex"];
 		if (files->textures.find(metallicTex) != files->textures.end()) {
 			material->metallicMap = files->textures[metallicTex];
 			params->metallicTex = metallicTex;
 		}
-		material->enableMetallicMap = m["enableMetallicMap"].asBool();
-		material->metallic = m["metallic"].asFloat();
+		material->enableMetallicMap = m["enableMetallicMap"];
+		material->metallic = m["metallic"];
 
-		string normalTex = m["normalTex"].asString();
+		string normalTex = m["normalTex"];
 		if (files->textures.find(normalTex) != files->textures.end()) {
 			material->normalMap = files->textures[normalTex];
 			params->normalTex = normalTex;
 		}
-		material->enableNormalMap = m["enableNormalMap"].asBool();
-		material->normalVal = m["normalVal"].asFloat();
+		material->enableNormalMap = m["enableNormalMap"];
+		material->normalVal = m["normalVal"];
 
-		string occlusionTex = m["occlusionTex"].asString();
+		string occlusionTex = m["occlusionTex"];
 		if (files->textures.find(occlusionTex) != files->textures.end()) {
 			material->occlusionMap = files->textures[occlusionTex];
 			params->occlusionTex = occlusionTex;
 		}
-		material->enableOcclusionMap = m["enableOcclusionMap"].asBool();
+		material->enableOcclusionMap = m["enableOcclusionMap"];
 
-		string emissionTex = m["emissionTex"].asString();
+		string emissionTex = m["emissionTex"];
 		if (files->textures.find(emissionTex) != files->textures.end()) {
 			material->emissionMap = files->textures[emissionTex];
 			params->emissionTex = emissionTex;
 		}
-		material->enableEmissionMap = m["enableEmissionMap"].asBool();
+		material->enableEmissionMap = m["enableEmissionMap"];
 
-		string detailBaseColorTex = m["detailBaseColorTex"].asString();
+		string detailBaseColorTex = m["detailBaseColorTex"];
 		if (files->textures.find(detailBaseColorTex) != files->textures.end()) {
 			material->detailBaseColorMap = files->textures[detailBaseColorTex];
 			params->detailBaseColorTex = detailBaseColorTex;
 		}
-		material->enableDetailBaseColorMap = m["enableDetailBaseColorMap"].asBool();
+		material->enableDetailBaseColorMap = m["enableDetailBaseColorMap"];
 
-		string detailNormalTex = m["detailNormalTex"].asString();
+		string detailNormalTex = m["detailNormalTex"];
 		if (files->textures.find(detailNormalTex) != files->textures.end()) {
 			material->detailNormalMap = files->textures[detailNormalTex];
 			params->detailNormalTex = detailNormalTex;
 		}
-		material->enableDetailNormalMap = m["enableDetailNormalMap"].asBool();
+		material->enableDetailNormalMap = m["enableDetailNormalMap"];
 
 		material->textureRepeat = ofVec2f(
-			m["textureRepeat"]["x"].asFloat(),
-			m["textureRepeat"]["y"].asFloat());
+			m["textureRepeat"]["x"],
+			m["textureRepeat"]["y"]);
 
 		material->detailTextureRepeat = ofVec2f(
-			m["detailTextureRepeat"]["x"].asFloat(),
-			m["detailTextureRepeat"]["y"].asFloat());
+			m["detailTextureRepeat"]["x"],
+			m["detailTextureRepeat"]["y"]);
 	}
 }
 
@@ -1216,37 +1275,40 @@ void ofxPBRHelper::setLightsFromJson(string lightName)
 	if (lights.find(lightName) != lights.end()) {
 		ofxPBRLight* light = lights[lightName];
 
-		if (settings.isNull() == false && settings["light"][lightName].isNull() == false) {
+		if (settings.is_null() == false && settings["light"][lightName].is_null() == false) {
 			light->setup();
 
-			Json::Value p = settings["light"][lightName];
+			ofJson p = settings["light"][lightName];
 			ofxPBRLightData params;
-			params.enable = p["enable"].asBool();
-			params.intensity = p["intensity"].asFloat();
-			params.lightType = static_cast<LightType>(p["lightType"].asInt());
+			params.enable = p["enable"];
+			params.intensity = p["intensity"];
+			params.lightType = static_cast<LightType>(p["lightType"]);
 
-			params.color.r = p["color"][0].asFloat();
-			params.color.g = p["color"][1].asFloat();
-			params.color.b = p["color"][2].asFloat();
+			params.color.r = p["color"][0];
+			params.color.g = p["color"][1];
+			params.color.b = p["color"][2];
 
-			float matValue[16];;
+			float matValue[16];
 			for (int i = 0; i < 16; i++) {
-				matValue[i] = p["matrix"][i].asFloat();
+				matValue[i] = p["matrix"][i];
 			}
 			ofMatrix4x4 transformMat;
 			transformMat.set(&matValue[0]);
-			light->setTransformMatrix(transformMat);
+			light->setScale(transformMat.getScale());
+			light->setGlobalOrientation(transformMat.getRotate());
+			light->setGlobalPosition(transformMat.getTranslation());
 
-			params.shadowType = static_cast<ShadowType>(p["shadowType"].asInt());
-			params.shadowBias = p["shadowBias"].asFloat();
-			params.shadowStrength = p["shadowStrength"].asFloat();
+			params.shadowType = static_cast<ShadowType>(p["shadowType"]);
+			params.shadowBias = p["shadowBias"];
+			params.shadowStrength = p["shadowStrength"];
 
-			params.spotLightGradient = p["spotLightGradient"].asFloat();
-			params.spotLightCutoff = p["spotLightCutoff"].asFloat();
+			params.spotLightGradient = p["spotLightGradient"];
+			params.spotLightCutoff = p["spotLightCutoff"];
+			params.spotLightDistance = p["spotLightDistance"];
 
-			params.skyLightLatitude = p["skyLightLatitude"].asFloat();
-			params.skyLightLongitude = p["skyLightLongitude"].asFloat();
-			params.skyLightAngle = p["skyLightAngle"].asFloat();
+			params.skyLightLatitude = p["skyLightLatitude"];
+			params.skyLightLongitude = p["skyLightLongitude"];
+			params.skyLightAngle = p["skyLightAngle"];
 
 			light->setParameters(params);
 		}
@@ -1257,12 +1319,12 @@ void ofxPBRHelper::setCubeMapsFromJson(string cubeMapName)
 {
 	ofxPBRCubeMap* cubeMap = cubeMaps[cubeMapName].first;
 	CubeMapParams* params = cubeMaps[cubeMapName].second;
-	if (settings.isNull() == false && settings["cubeMap"][cubeMapName].isNull() == false) {
-		Json::Value c = settings["cubeMap"][cubeMapName];
-		params->resolution = c["resolution"].asInt();
-		params->url = c["url"].asString();
+	if (settings.is_null() == false && settings["cubeMap"][cubeMapName].is_null() == false) {
+		ofJson c = settings["cubeMap"][cubeMapName];
+		params->resolution = c["resolution"];
+		params->url = c["url"].get<string>();
 		if (params->url != "") {
-			cubeMap->load(c["url"].asString(), params->resolution, true, files->getPath() + "/cubemapCache/");
+			cubeMap->load(c["url"], params->resolution, true, files->getPath() + "/cubemapCache/");
 			if (pbrParams.cubeMapName == cubeMapName && cubeMaps.find(pbrParams.cubeMapName) != cubeMaps.end()) {
 				currentCubeMapKey = pbrParams.cubeMapName;
 				pbr->setCubeMap(cubeMaps[cubeMapName].first);
@@ -1271,9 +1333,9 @@ void ofxPBRHelper::setCubeMapsFromJson(string cubeMapName)
 				}
 			}
 		}
-		params->exposure = c["exposure"].asFloat();
-		params->rotation = c["rotation"].asFloat();
-		params->envronmentLevel = c["envronmentLevel"].asFloat();
+		params->exposure = c["exposure"];
+		params->rotation = c["rotation"];
+		params->envronmentLevel = c["envronmentLevel"];
 	}
 	cubeMap->setExposure(params->exposure);
 	cubeMap->setRotation(params->rotation);
@@ -1282,9 +1344,9 @@ void ofxPBRHelper::setCubeMapsFromJson(string cubeMapName)
 
 void ofxPBRHelper::setPBRFromJson()
 {
-	if (settings.isNull() == false && settings["pbr"].isNull() == false) {
-		Json::Value p = settings["pbr"];
-		pbrParams.cubeMapName = p["cubeMapName"].asString();
+	if (settings.is_null() == false && settings["pbr"].is_null() == false) {
+		ofJson p = settings["pbr"];
+		pbrParams.cubeMapName = p["cubeMapName"].get<string>();
 		if (pbrParams.cubeMapName != "" && cubeMaps.find(pbrParams.cubeMapName) != cubeMaps.end()) {
 			currentCubeMapKey = pbrParams.cubeMapName;
 			pbr->setCubeMap(cubeMaps[pbrParams.cubeMapName].first);
@@ -1292,9 +1354,9 @@ void ofxPBRHelper::setPBRFromJson()
 				if (cubeMapKeys[i] == currentCubeMapKey) currentCubeMapIndex = i;
 			}
 		}
-        pbrParams.enableCubeMap = p["enableCubeMap"].asBool();
-		pbrParams.shadowMapRes = p["shadowMapRes"].asInt();
-		pbrParams.enableEnvironment = p["enableEnvironment"].asBool();
+        pbrParams.enableCubeMap = p["enableCubeMap"];
+		pbrParams.shadowMapRes = p["shadowMapRes"];
+		pbrParams.enableEnvironment = p["enableEnvironment"];
 	}
 
     pbr->enableCubeMap(pbrParams.enableCubeMap);
