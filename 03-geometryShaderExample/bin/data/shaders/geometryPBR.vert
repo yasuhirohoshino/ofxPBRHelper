@@ -1,18 +1,12 @@
-#version 330
+#version 410
 
-#define MAX_LIGHTS 8
-
-uniform mat4 projectionMatrix;
-uniform mat4 modelViewMatrix;
-uniform mat4 textureMatrix;
-uniform mat4 modelViewProjectionMatrix;
-uniform vec4 globalColor;
-
+// in
 in vec4 position;
 in vec3 normal;
 in vec2 texcoord;
 in vec4 color;
 
+// out
 out vec4 positionForGeom;
 out vec3 normalForGeom;
 out vec2 texCoordForGeom;

@@ -3,16 +3,19 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
     ofDisableArbTex();
-    
+
     geomShader.setGeometryInputType(GL_TRIANGLES);
     geomShader.setGeometryOutputCount(9);
     geomShader.setGeometryOutputType(GL_TRIANGLES);
     geomShader.load("shaders/geometryPBR.vert", "shaders/geometryPBR.frag", "shaders/geometryPBR.geom");
-    pbr.setup(1024);
-    
+	pbr.setup(scene, &cam, 1024);
+	
+	gui.setup();
+
     cam.setupPerspective(false, 60, 1, 12000);
     
     scene = bind(&ofApp::renderScene, this);
+	pbr.setup(scene, &cam, 2048);
     
     ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
     pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);
@@ -24,8 +27,6 @@ void ofApp::setup(){
     ofSetSphereResolution(32);
     ofSetConeResolution(32, 1);
     ofSetBoxResolution(1);
-    
-    gui.setup();
 }
 
 //--------------------------------------------------------------
@@ -35,13 +36,13 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    pbr.makeDepthMap(scene);
+	pbr.updateDepthMaps();
     
     ofDisableAlphaBlending();
     
     cam.begin();
-    pbr.drawEnvironment(&cam);
-    scene();
+    pbr.drawEnvironment();
+	pbr.renderScene();
     cam.end();
     
     ofEnableAlphaBlending();
@@ -73,7 +74,7 @@ void ofApp::draw(){
 void ofApp::renderScene(){
     ofEnableDepthTest();
     
-    pbr.begin(&cam, &geomShader);
+    pbr.beginCustomRenderer(&geomShader);
     sphereMaterial.begin(&pbr);
     
     ofSetIcoSphereResolution(0);
@@ -92,13 +93,13 @@ void ofApp::renderScene(){
     ofDrawIcoSphere(750 * 2, 0, 0, 300);
     
     sphereMaterial.end();
-    pbr.end();
+    pbr.endCustomRenderer();
     
-    pbr.begin(&cam);
+    pbr.beginDefaultRenderer();
     floorMaterial.begin(&pbr);
     ofDrawBox(0, -450, 0, 5000, 10, 5000);
     floorMaterial.end();
-    pbr.end();
+    pbr.endDefaultRenderer();
     
     ofDisableDepthTest();
 }

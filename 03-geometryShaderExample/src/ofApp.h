@@ -39,5 +39,5 @@ class ofApp : public ofBaseApp{
     
     bool mouseInput = true;
     bool showGui = true;
-    ofxImGui gui;
+    ofxImGui::Gui gui;
 };

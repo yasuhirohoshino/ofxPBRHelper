@@ -1,12 +1,26 @@
-#version 330
+#version 410
 
 #define MAX_LIGHTS 8
 
+const int MODE_PBR = 0;
+const int MODE_DIRECTIONALSHADOW = 1;
+const int MODE_SPOTSHADOW = 2;
+const int MODE_OMNISHADOW = 3;
+
+// default uniforms
 uniform mat4 projectionMatrix;
 uniform mat4 modelViewMatrix;
 uniform mat4 textureMatrix;
 uniform mat4 modelViewProjectionMatrix;
 uniform vec4 globalColor;
+uniform mat4 viewMatrix;
+
+// mode
+uniform int renderMode;
+// depth camera's view projection matrix
+uniform mat4 lightsViewProjectionMatrix;
+
+
 
 layout(triangles) in;
 layout(triangle_strip, max_vertices= 9) out;
@@ -16,25 +30,35 @@ in vec3 normalForGeom[3];
 in vec2 texCoordForGeom[3];
 in vec4 colorForGeom[3];
 
+out vec4 m_positionVarying;
 out vec2 texCoordVarying;
-out vec3 normalVarying;
-out vec4 positionVarying;
 out vec4 colorVarying;
 
-out mat4 normalMatrix;
+out vec3 mv_normalVarying;
+out vec4 mv_positionVarying;
+
+
 
 vec4 position[3];
 vec4 centerPos;
 vec2 centerTexCoord;
 
 void emitVertex(vec4 vertex, vec3 normal, vec2 texCoord, int index){
-    
-    normalMatrix = inverse(transpose(modelViewMatrix));
-    normalVarying = normal;
-    positionVarying = vertex;
-    texCoordVarying = texCoord;
-    colorVarying = colorForGeom[index];
-    gl_Position = modelViewProjectionMatrix * vertex;
+
+    if(renderMode == MODE_PBR){
+		// render pass
+		m_positionVarying = inverse(viewMatrix) * modelViewMatrix * vertex;
+        mat4 normalMatrix = inverse(transpose(modelViewMatrix));
+        mv_positionVarying = modelViewMatrix * vertex;
+        mv_normalVarying = vec3(mat3(normalMatrix) * normal);
+        texCoordVarying = texCoord;
+        colorVarying = colorForGeom[index];
+        gl_Position = modelViewProjectionMatrix * vertex;
+	}else{
+		// depth map pass
+        m_positionVarying = inverse(viewMatrix) * modelViewMatrix * vertex;
+        gl_Position = lightsViewProjectionMatrix * m_positionVarying;
+	}
     
     EmitVertex();
 }
@@ -67,5 +91,4 @@ void main() {
     emitMesh(0, 1);
     emitMesh(1, 2);
     emitMesh(2, 0);
-    
 }

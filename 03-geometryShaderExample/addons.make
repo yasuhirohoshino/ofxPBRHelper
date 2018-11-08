@@ -1,4 +1,3 @@
 ofxImGui
-ofxJSON
 ofxPBR
 ofxPBRHelper
