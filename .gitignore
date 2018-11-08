@@ -158,7 +158,6 @@ icon.rc
 *.plist
 config.make
 Makefile
-*/bin/data/ofxPBRAssets/
 
 #########################
 # ofxPBR
