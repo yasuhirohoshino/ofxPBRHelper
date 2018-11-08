@@ -45,7 +45,7 @@ class ofApp : public ofBaseApp{
     ofVboMesh modelMesh;
         
     ofShader tonemap, fxaa, detectBloomColor, bloomBlur;
-    ofxImGui gui;
+    ofxImGui::Gui gui;
     float exposure = 1.0;
     float gamma = 2.2;
     float bloomThrethould = 1.0;

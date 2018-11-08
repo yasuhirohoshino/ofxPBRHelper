@@ -9,8 +9,6 @@ void ofApp::setup(){
     }
     modelScale = model.getModelMatrix().getScale();
     
-    pbr.setup(1024);
-    
     defaultFboSettings.textureTarget = GL_TEXTURE_2D;
     defaultFboSettings.useDepth = true;
     defaultFboSettings.depthStencilAsTexture = true;
@@ -22,9 +20,11 @@ void ofApp::setup(){
     resizeFbos();
     
     cam.setupPerspective(false, 60, 1, 12000);
-    
     scene = bind(&ofApp::renderScene, this);
+	pbr.setup(scene, &cam, 2048);
     
+	gui.setup();
+
     ofxPBRFiles::getInstance()->setup("ofxPBRAssets");
     pbrHelper.setup(&pbr, ofxPBRFiles::getInstance()->getPath() + "/settings", true);
     pbrHelper.addLight(&pbrLight, "light");
@@ -38,8 +38,6 @@ void ofApp::setup(){
     bloomBlur.load(path + "passThrough.vert", path + "blur.frag");
     tonemap.load(path + "passThrough.vert", path + "tonemap.frag");
     fxaa.load(path + "passThrough.vert", path + "fxaa.frag");
-    
-    gui.setup();
 }
 
 //--------------------------------------------------------------
@@ -49,22 +47,18 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    pbr.makeDepthMap(scene);
-    
     ofDisableAlphaBlending();
     ofEnableDepthTest();
     
-    glCullFace(GL_FRONT);
+	pbr.updateDepthMaps();
+
     firstPass.begin();
     ofClear(0);
     cam.begin();
-    pbr.drawEnvironment(&cam);
+    pbr.drawEnvironment();
     scene();
     cam.end();
     firstPass.end();
-    glDisable(GL_CULL_FACE);
     
     ofDisableDepthTest();
     ofEnableAlphaBlending();
@@ -172,7 +166,7 @@ void ofApp::resizeFbos(){
 void ofApp::renderScene(){
     ofEnableDepthTest();
     
-    pbr.begin(&cam);
+    pbr.beginDefaultRenderer();
     
     material1.begin(&pbr);
     ofPushMatrix();
@@ -185,7 +179,7 @@ void ofApp::renderScene(){
     ofDrawBox(0, -5, 0, 5000, 10, 5000);
     material2.end();
     
-    pbr.end();
+    pbr.endDefaultRenderer();
     
     ofDisableDepthTest();
 }
